@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import '../models/service.dart';
 import '../models/user.dart' as app_user;
 import '../screens/login_screen.dart';
+import 'edit_service_screen.dart';
 
 
 class AdminPanel extends StatefulWidget {
@@ -141,6 +142,32 @@ class _AdminPanelState extends State<AdminPanel> {
                   onTap: () {
                     Navigator.pop(context);
                     _showAssignTechnicianDialog(service);
+                  },
+                ),
+              ),
+            if (service.status != ServiceStatus.completed)
+              PopupMenuItem(
+                child: ListTile(
+                  leading: const Icon(Icons.edit, color: Colors.blue),
+                  title: const Text('Editar', style: TextStyle(color: Colors.blue)),
+                  onTap: () async {
+                    Navigator.pop(context);
+                    final updated = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => EditServiceScreen(service: service),
+                      ),
+                    );
+                    
+                    if (updated == true) {
+                      // El servicio fue actualizado, el StreamBuilder se actualizará automáticamente
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Servicio actualizado exitosamente'),
+                          backgroundColor: Colors.green,
+                        ),
+                      );
+                    }
                   },
                 ),
               ),

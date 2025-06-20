@@ -3,7 +3,6 @@ import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../services/service_management_service.dart';
 import '../screens/service_detail_screen.dart';
-import '../models/service.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});

@@ -1,6 +1,4 @@
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
-import 'package:firebase_auth/firebase_auth.dart' as auth
-    show EmailAuthProvider;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart' as app_user;
 

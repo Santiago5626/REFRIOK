@@ -481,8 +481,9 @@ class ServiceManagementService {
       if (location != null) updateData['location'] = location;
       if (clientName != null) updateData['clientName'] = clientName;
       if (clientPhone != null) updateData['clientPhone'] = clientPhone;
-      if (scheduledFor != null)
+      if (scheduledFor != null) {
         updateData['scheduledFor'] = scheduledFor.toIso8601String();
+      }
       if (basePrice != null) {
         updateData['basePrice'] = basePrice;
 
@@ -511,8 +512,9 @@ class ServiceManagementService {
           }
         }
       }
-      if (additionalDetails != null)
+      if (additionalDetails != null) {
         updateData['additionalDetails'] = additionalDetails;
+      }
 
       if (updateData.isNotEmpty) {
         await _firestore
