@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "557548135367",
+    "project_id": "tech-service-app-e9ade",
+    "storage_bucket": "tech-service-app-e9ade.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:557548135367:android:ca56dccecaf4f22c9fafe2",
+        "android_client_info": {
+          "package_name": "com.techservice.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAdUfoq0JA5OI7LSJWRXPsdYTVCsp-KNKo"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
