@@ -6,6 +6,9 @@ import '../models/service.dart';
 import '../models/user.dart' as app_user;
 import '../screens/login_screen.dart';
 import 'edit_service_screen.dart';
+import 'sede_management_screen.dart';
+import '../services/sede_service.dart';
+import '../models/sede.dart';
 
 
 class AdminPanel extends StatefulWidget {
@@ -18,6 +21,7 @@ class AdminPanel extends StatefulWidget {
 class _AdminPanelState extends State<AdminPanel> {
   final ServiceManagementService _serviceService = ServiceManagementService();
   final AuthService _authService = AuthService();
+  final SedeService _sedeService = SedeService();
   int _selectedIndex = 0;
 
   @override
@@ -47,6 +51,7 @@ class _AdminPanelState extends State<AdminPanel> {
           _buildServicesTab(),
           _buildCreateServiceTab(),
           _buildUsersTab(),
+          const SedeManagementScreen(),
         ],
       ),
       bottomNavigationBar: BottomNavigationBar(
@@ -56,6 +61,7 @@ class _AdminPanelState extends State<AdminPanel> {
             _selectedIndex = index;
           });
         },
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.list),
@@ -68,6 +74,10 @@ class _AdminPanelState extends State<AdminPanel> {
           BottomNavigationBarItem(
             icon: Icon(Icons.people),
             label: 'Usuarios',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.location_city),
+            label: 'Sedes',
           ),
         ],
       ),
@@ -357,6 +367,7 @@ class _AdminPanelState extends State<AdminPanel> {
     final passwordController = TextEditingController();
     final confirmPasswordController = TextEditingController();
     bool isAdmin = false;
+    String? selectedSedeId;
 
     // Mostrar directamente el formulario de creación de usuario
     showDialog(
@@ -409,9 +420,56 @@ class _AdminPanelState extends State<AdminPanel> {
                     onChanged: (value) {
                       setState(() {
                         isAdmin = value ?? false;
+                        if (isAdmin) {
+                          selectedSedeId = null; // Los admins no tienen sede
+                        }
                       });
                     },
                   ),
+                  if (!isAdmin) ...[
+                    const SizedBox(height: 16),
+                    StreamBuilder<List<Sede>>(
+                      stream: _sedeService.getSedesActivas(),
+                      builder: (context, snapshot) {
+                        if (snapshot.connectionState == ConnectionState.waiting) {
+                          return const CircularProgressIndicator();
+                        }
+
+                        final sedes = snapshot.data ?? [];
+                        if (sedes.isEmpty) {
+                          return const Text(
+                            'No hay sedes disponibles. Cree una sede primero.',
+                            style: TextStyle(color: Colors.red),
+                          );
+                        }
+
+                        return DropdownButtonFormField<String>(
+                          value: selectedSedeId,
+                          decoration: const InputDecoration(
+                            labelText: 'Sede (Técnicos)',
+                            border: OutlineInputBorder(),
+                          ),
+                          items: sedes.map((sede) {
+                            return DropdownMenuItem<String>(
+                              value: sede.id,
+                              child: Text(sede.nombre),
+                            );
+                          }).toList(),
+                          onChanged: (String? newValue) {
+                            setState(() {
+                              selectedSedeId = newValue;
+                            });
+                          },
+                          validator: (value) {
+                            if (!isAdmin && (value == null || value.isEmpty)) {
+                              return 'Seleccione una sede para el técnico';
+                            }
+                            return null;
+                          },
+                        );
+                      },
+                    ),
+                  ],
                 ],
               ),
             ),
@@ -430,6 +488,7 @@ class _AdminPanelState extends State<AdminPanel> {
                       password: passwordController.text,
                       name: nameController.text,
                       isAdmin: isAdmin,
+                      sedeId: isAdmin ? null : selectedSedeId,
                     );
 
                     if (!mounted) return;

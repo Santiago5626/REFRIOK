@@ -213,6 +213,7 @@ class AuthService {
     required String password,
     required String name,
     bool isAdmin = false,
+    String? sedeId,
   }) async {
     try {
       // Verificar que el usuario actual sea admin
@@ -274,6 +275,7 @@ class AuthService {
         'totalEarnings': 0,
         'completedServices': 0,
         'createdAt': DateTime.now().toIso8601String(),
+        'sedeId': sedeId,
       });
 
       // Cerrar sesión del nuevo usuario
@@ -483,17 +485,20 @@ class AuthService {
   }
 
   // Obtener lista de técnicos (usuarios no admin)
-  Stream<List<app_user.User>> getTechnicians() {
-    return _firestore
-        .collection('users')
-        .where('isAdmin', isEqualTo: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => app_user.User.fromMap({
-                  'id': doc.id,
-                  ...doc.data(),
-                }))
-            .toList());
+  Stream<List<app_user.User>> getTechnicians({String? sedeId}) {
+    var query =
+        _firestore.collection('users').where('isAdmin', isEqualTo: false);
+
+    if (sedeId != null) {
+      query = query.where('sedeId', isEqualTo: sedeId);
+    }
+
+    return query.snapshots().map((snapshot) => snapshot.docs
+        .map((doc) => app_user.User.fromMap({
+              'id': doc.id,
+              ...doc.data(),
+            }))
+        .toList());
   }
 
   // Obtener todos los técnicos (método Future para la pantalla de pagos)

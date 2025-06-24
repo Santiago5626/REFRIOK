@@ -8,6 +8,7 @@ class User {
   final DateTime? lastPaymentDate;
   final double totalEarnings;
   final int completedServices;
+  final String? sedeId;
 
   User({
     required this.id,
@@ -19,6 +20,7 @@ class User {
     this.lastPaymentDate,
     this.totalEarnings = 0,
     this.completedServices = 0,
+    this.sedeId,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
@@ -34,6 +36,7 @@ class User {
           : null,
       totalEarnings: (map['totalEarnings'] ?? 0.0).toDouble(),
       completedServices: map['completedServices'] ?? 0,
+      sedeId: map['sedeId'],
     );
   }
 
@@ -48,6 +51,7 @@ class User {
       'lastPaymentDate': lastPaymentDate?.toIso8601String(),
       'totalEarnings': totalEarnings,
       'completedServices': completedServices,
+      'sedeId': sedeId,
     };
   }
 
@@ -61,6 +65,7 @@ class User {
     DateTime? lastPaymentDate,
     double? totalEarnings,
     int? completedServices,
+    String? sedeId,
   }) {
     return User(
       id: id ?? this.id,
@@ -72,6 +77,7 @@ class User {
       lastPaymentDate: lastPaymentDate ?? this.lastPaymentDate,
       totalEarnings: totalEarnings ?? this.totalEarnings,
       completedServices: completedServices ?? this.completedServices,
+      sedeId: sedeId ?? this.sedeId,
     );
   }
 

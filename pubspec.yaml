@@ -1,5 +1,5 @@
-name: tech_service_app
-description: Technical service management application
+name: refriok
+description: REFRIOK - Aplicación de gestión de servicios técnicos
 version: 1.0.0+1
 
 environment:
