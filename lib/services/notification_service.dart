@@ -1,169 +1,226 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+import 'package:flutter/material.dart';
 
 class NotificationService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  static final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
+  static final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
+  
+  static Future<void> initialize() async {
+    // Solicitar permisos
+    NotificationSettings settings = await _firebaseMessaging.requestPermission(
+      alert: true,
+      announcement: false,
+      badge: true,
+      carPlay: false,
+      criticalAlert: false,
+      provisional: false,
+      sound: true,
+    );
 
-  // Crear una notificación
-  Future<bool> createNotification({
-    required String userId,
-    required String title,
-    required String message,
-    required String type,
-    Map<String, dynamic>? data,
+    if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+      print('Usuario otorgó permisos de notificación');
+    } else if (settings.authorizationStatus == AuthorizationStatus.provisional) {
+      print('Usuario otorgó permisos provisionales');
+    } else {
+      print('Usuario denegó permisos de notificación');
+    }
+
+    // Configurar notificaciones locales
+    const AndroidInitializationSettings initializationSettingsAndroid =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    
+    const InitializationSettings initializationSettings = InitializationSettings(
+      android: initializationSettingsAndroid,
+    );
+
+    await _localNotifications.initialize(
+      initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+        // Manejar cuando el usuario toca la notificación
+        print('Notificación tocada: ${response.payload}');
+      },
+    );
+
+    // Configurar el canal de notificación para Android
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'service_assignments', // id
+      'Asignaciones de Servicio', // title
+      description: 'Notificaciones cuando se asigna un servicio a un técnico',
+      importance: Importance.high,
+    );
+
+    await _localNotifications
+        .resolvePlatformSpecificImplementation<AndroidFlutterLocalNotificationsPlugin>()
+        ?.createNotificationChannel(channel);
+
+    // Manejar mensajes cuando la app está en primer plano
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      print('Mensaje recibido en primer plano: ${message.notification?.title}');
+      _showLocalNotification(message);
+    });
+
+    // Manejar cuando la app se abre desde una notificación
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('App abierta desde notificación: ${message.notification?.title}');
+      // Aquí puedes navegar a una pantalla específica
+    });
+  }
+
+  static Future<String?> getToken() async {
+    try {
+      String? token = await _firebaseMessaging.getToken();
+      print('FCM Token: $token');
+      return token;
+    } catch (e) {
+      print('Error obteniendo token FCM: $e');
+      return null;
+    }
+  }
+
+  static Future<void> _showLocalNotification(RemoteMessage message) async {
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'service_assignments',
+      'Asignaciones de Servicio',
+      channelDescription: 'Notificaciones cuando se asigna un servicio a un técnico',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    await _localNotifications.show(
+      message.hashCode,
+      message.notification?.title ?? 'Nuevo Servicio',
+      message.notification?.body ?? 'Se te ha asignado un nuevo servicio',
+      platformChannelSpecifics,
+      payload: message.data.toString(),
+    );
+  }
+
+  static Future<void> showServiceAssignmentNotification({
+    required String serviceTitle,
+    required String clientName,
+    required String location,
   }) async {
-    try {
-      await _firestore.collection('notifications').add({
-        'userId': userId,
-        'title': title,
-        'message': message,
-        'type': type,
-        'data': data,
-        'isRead': false,
-        'createdAt': DateTime.now().toIso8601String(),
-      });
-      return true;
-    } catch (e) {
-      print('Error al crear notificación: $e');
-      return false;
-    }
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'service_assignments',
+      'Asignaciones de Servicio',
+      channelDescription: 'Notificaciones cuando se asigna un servicio a un técnico',
+      importance: Importance.high,
+      priority: Priority.high,
+      icon: '@mipmap/ic_launcher',
+    );
+
+    const NotificationDetails platformChannelSpecifics = NotificationDetails(
+      android: androidPlatformChannelSpecifics,
+    );
+
+    await _localNotifications.show(
+      DateTime.now().millisecondsSinceEpoch.remainder(100000),
+      'Nuevo Servicio Asignado',
+      '$serviceTitle - Cliente: $clientName\nUbicación: $location',
+      platformChannelSpecifics,
+    );
   }
 
-  // Obtener notificaciones de un usuario
-  Stream<List<Map<String, dynamic>>> getUserNotifications(String userId) {
-    return _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => {
-                  'id': doc.id,
-                  ...doc.data(),
-                })
-            .toList());
-  }
-
-  // Marcar notificación como leída
-  Future<bool> markAsRead(String notificationId) async {
-    try {
-      await _firestore.collection('notifications').doc(notificationId).update({
-        'isRead': true,
-        'readAt': DateTime.now().toIso8601String(),
-      });
-      return true;
-    } catch (e) {
-      print('Error al marcar notificación como leída: $e');
-      return false;
-    }
-  }
-
-  // Marcar todas las notificaciones como leídas
-  Future<bool> markAllAsRead(String userId) async {
-    try {
-      QuerySnapshot notifications = await _firestore
-          .collection('notifications')
-          .where('userId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false)
-          .get();
-
-      WriteBatch batch = _firestore.batch();
-      for (QueryDocumentSnapshot doc in notifications.docs) {
-        batch.update(doc.reference, {
-          'isRead': true,
-          'readAt': DateTime.now().toIso8601String(),
-        });
-      }
-
-      await batch.commit();
-      return true;
-    } catch (e) {
-      print('Error al marcar todas las notificaciones como leídas: $e');
-      return false;
-    }
-  }
-
-  // Obtener cantidad de notificaciones no leídas
-  Stream<int> getUnreadCount(String userId) {
-    return _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .where('isRead', isEqualTo: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.length);
-  }
-
-  // Eliminar notificación
-  Future<bool> deleteNotification(String notificationId) async {
-    try {
-      await _firestore.collection('notifications').doc(notificationId).delete();
-      return true;
-    } catch (e) {
-      print('Error al eliminar notificación: $e');
-      return false;
-    }
-  }
-
-  // Notificación específica para asignación de servicio
-  Future<bool> notifyServiceAssignment({
+  // Notificar asignación de servicio
+  static Future<void> notifyServiceAssignment({
     required String technicianId,
     required String serviceId,
     required String serviceTitle,
     required String clientName,
     required String location,
   }) async {
-    return await createNotification(
-      userId: technicianId,
-      title: 'Nuevo Servicio Asignado',
-      message: 'Se te ha asignado el servicio "$serviceTitle" para el cliente $clientName en $location',
-      type: 'service_assignment',
-      data: {
-        'serviceId': serviceId,
-        'serviceTitle': serviceTitle,
-        'clientName': clientName,
-        'location': location,
-      },
+    // Mostrar notificación local
+    await showServiceAssignmentNotification(
+      serviceTitle: serviceTitle,
+      clientName: clientName,
+      location: location,
     );
+
+    // Enviar notificación FCM al técnico
+    await subscribeToTopic('technician_$technicianId');
   }
 
-  // Notificación para cambio de estado de servicio
-  Future<bool> notifyServiceStatusChange({
-    required String userId,
+  // Notificar cambio de estado del servicio
+  static Future<void> notifyServiceStatusChange({
     required String serviceId,
     required String serviceTitle,
     required String newStatus,
-    String? message,
+    required String technicianId,
+    String? clientName,
   }) async {
-    String statusText = _getStatusText(newStatus);
-    
-    return await createNotification(
-      userId: userId,
-      title: 'Estado de Servicio Actualizado',
-      message: message ?? 'El servicio "$serviceTitle" cambió a estado: $statusText',
-      type: 'service_status_change',
-      data: {
-        'serviceId': serviceId,
-        'serviceTitle': serviceTitle,
-        'newStatus': newStatus,
-      },
+    const AndroidNotificationDetails androidPlatformChannelSpecifics =
+        AndroidNotificationDetails(
+      'service_status',
+      'Estado de Servicios',
+      channelDescription: 'Notificaciones de cambios en el estado de servicios',
+      importance: Importance.high,
+      priority: Priority.high,
+    );
+
+    const NotificationDetails platformChannelSpecifics =
+        NotificationDetails(android: androidPlatformChannelSpecifics);
+
+    String message = 'El servicio "$serviceTitle" ha cambiado a estado: $newStatus';
+    if (clientName != null) {
+      message += '\nCliente: $clientName';
+    }
+
+    await _localNotifications.show(
+      serviceId.hashCode,
+      'Actualización de Servicio',
+      message,
+      platformChannelSpecifics,
     );
   }
 
-  String _getStatusText(String status) {
-    switch (status) {
-      case 'pending':
-        return 'Pendiente';
-      case 'assigned':
-        return 'Asignado';
-      case 'onWay':
-        return 'En Camino';
-      case 'inProgress':
-        return 'En Progreso';
-      case 'completed':
-        return 'Completado';
-      case 'cancelled':
-        return 'Cancelado';
-      default:
-        return status;
-    }
+  // Obtener conteo de notificaciones no leídas
+  static Future<int> getUnreadCount() async {
+    // Implementar lógica para obtener conteo de notificaciones no leídas
+    return 0;
   }
+
+  // Marcar todas las notificaciones como leídas
+  static Future<void> markAllAsRead() async {
+    // Implementar lógica para marcar todas las notificaciones como leídas
+  }
+
+  // Obtener notificaciones del usuario
+  static Stream<List<Map<String, dynamic>>> getUserNotifications() {
+    // Implementar lógica para obtener notificaciones del usuario
+    return Stream.value([]);
+  }
+
+  // Marcar notificación como leída
+  static Future<void> markAsRead(String notificationId) async {
+    // Implementar lógica para marcar notificación como leída
+  }
+
+  // Eliminar notificación
+  static Future<void> deleteNotification(String notificationId) async {
+    // Implementar lógica para eliminar notificación
+  }
+
+  static Future<void> subscribeToTopic(String topic) async {
+    await _firebaseMessaging.subscribeToTopic(topic);
+    print('Suscrito al topic: $topic');
+  }
+
+  static Future<void> unsubscribeFromTopic(String topic) async {
+    await _firebaseMessaging.unsubscribeFromTopic(topic);
+    print('Desuscrito del topic: $topic');
+  }
+}
+
+// Función para manejar mensajes en segundo plano
+@pragma('vm:entry-point')
+Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  print('Mensaje recibido en segundo plano: ${message.notification?.title}');
 }

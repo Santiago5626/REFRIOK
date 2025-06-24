@@ -104,7 +104,7 @@ class ServiceManagementService {
       });
 
       // Enviar notificación al técnico
-      await _notificationService.notifyServiceAssignment(
+      await NotificationService.notifyServiceAssignment(
         technicianId: technicianId,
         serviceId: serviceId,
         serviceTitle: service.title,
@@ -115,13 +115,12 @@ class ServiceManagementService {
       // Notificar al admin sobre la asignación
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await _notificationService.notifyServiceStatusChange(
-          userId: adminId,
+        await NotificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'assigned',
-          message:
-              'El técnico ha aceptado el servicio "${service.title}" para el cliente ${service.clientName}',
+          technicianId: technicianId,
+          clientName: service.clientName,
         );
       }
 
@@ -155,13 +154,12 @@ class ServiceManagementService {
       // Notificar al admin
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await _notificationService.notifyServiceStatusChange(
-          userId: adminId,
+        await NotificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'onWay',
-          message:
-              'El técnico está en camino al servicio "${service.title}" para el cliente ${service.clientName}',
+          technicianId: service.assignedTechnicianId ?? '',
+          clientName: service.clientName,
         );
       }
 
@@ -206,16 +204,12 @@ class ServiceManagementService {
       // Notificar al admin
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        String serviceTypeText = serviceType == ServiceType.revision
-            ? 'revisión'
-            : 'servicio completo';
-        await _notificationService.notifyServiceStatusChange(
-          userId: adminId,
+        await NotificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'inProgress',
-          message:
-              'El técnico ha llegado al servicio "${service.title}" y realizará una $serviceTypeText. Precio: ₡$finalPrice',
+          technicianId: service.assignedTechnicianId ?? '',
+          clientName: service.clientName,
         );
       }
 
@@ -279,15 +273,12 @@ class ServiceManagementService {
       // Notificar al admin sobre la finalización
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        double adminCommission = calculatedPrice * 0.3;
-
-        await _notificationService.notifyServiceStatusChange(
-          userId: adminId,
+        await NotificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'completed',
-          message:
-              'Servicio "${service.title}" completado. Comisión del admin: ₡${adminCommission.toStringAsFixed(0)}. ${notes != null ? "Notas: $notes" : ""}',
+          technicianId: service.assignedTechnicianId ?? '',
+          clientName: service.clientName,
         );
       }
 
@@ -362,12 +353,12 @@ class ServiceManagementService {
       // Notificar al admin
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await _notificationService.notifyServiceStatusChange(
-          userId: adminId,
+        await NotificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'cancelled',
-          message: 'Servicio "${service.title}" cancelado. Motivo: $reason',
+          technicianId: service.assignedTechnicianId ?? '',
+          clientName: service.clientName,
         );
       }
 
@@ -576,7 +567,7 @@ class ServiceManagementService {
       });
 
       // Enviar notificación al técnico
-      await _notificationService.notifyServiceAssignment(
+      await NotificationService.notifyServiceAssignment(
         technicianId: technicianId,
         serviceId: serviceId,
         serviceTitle: service.title,
