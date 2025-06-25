@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart' as app_user;
 import 'home_screen.dart';
-import 'admin_panel.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -43,13 +42,7 @@ class _LoginScreenState extends State<LoginScreen> {
         });
 
         if (user != null) {
-          if (user.isAdmin) {
-            if (!mounted) return;
-            Navigator.pushReplacement(
-              context,
-              MaterialPageRoute(builder: (context) => const AdminPanel()),
-            );
-          } else if (user.isBlocked) {
+          if (user.isBlocked) {
             if (!mounted) return;
             _showBlockedDialog();
           } else {
@@ -129,25 +122,20 @@ class _LoginScreenState extends State<LoginScreen> {
                 children: [
                   Image.asset(
                     'assets/images/logo.png',
-                    width: 100,
-                    height: 100,
-                  ),
-                  const SizedBox(height: 32),
-                  const Text(
-                    'Refri OK',
-                    textAlign: TextAlign.center,
-                    style: TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    width: 200,
+                    height: 200,
                   ),
                   const SizedBox(height: 32),
                   TextFormField(
                     controller: _emailController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Correo Electrónico',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.email, color: Color(0xFF1E88E5)),
+                      labelStyle: TextStyle(color: Color(0xFF1E88E5)),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF1E88E5)),
+                      ),
                     ),
                     keyboardType: TextInputType.emailAddress,
                     validator: (value) {
@@ -163,10 +151,14 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 16),
                   TextFormField(
                     controller: _passwordController,
-                    decoration: const InputDecoration(
+                    decoration: InputDecoration(
                       labelText: 'Contraseña',
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.lock),
+                      border: const OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.lock, color: Color(0xFF1E88E5)),
+                      labelStyle: TextStyle(color: Color(0xFF1E88E5)),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(color: Color(0xFF1E88E5)),
+                      ),
                     ),
                     obscureText: true,
                     validator: (value) {
@@ -180,6 +172,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   ElevatedButton(
                     onPressed: _isLoading ? null : _handleLogin,
                     style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFF1E88E5),
+                      foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 16),
                     ),
                     child: _isLoading

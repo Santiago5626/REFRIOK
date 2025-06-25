@@ -1,6 +1,6 @@
 {
-    "name": "tech_service_app",
-    "short_name": "tech_service_app",
+    "name": "refriok",
+    "short_name": "refriok",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",

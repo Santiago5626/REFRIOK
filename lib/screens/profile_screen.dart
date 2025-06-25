@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
 import '../services/auth_service.dart';
+import '../services/payment_service.dart';
 
 class ProfileScreen extends StatefulWidget {
   final User initialUser;
@@ -19,6 +20,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final AuthService _authService = AuthService();
+  final PaymentService _paymentService = PaymentService();
 
   @override
   Widget build(BuildContext context) {
@@ -154,6 +156,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Colors.amber,
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            // Agregar información de deuda pendiente
+            FutureBuilder<double>(
+              future: _paymentService.getPendingCommissions(user.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                double pendingAmount = snapshot.data ?? 0.0;
+                
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: pendingAmount > 0 ? Colors.red.shade50 : Colors.green.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: pendingAmount > 0 ? Colors.red : Colors.green,
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        pendingAmount > 0 ? Icons.warning : Icons.check_circle,
+                        color: pendingAmount > 0 ? Colors.red : Colors.green,
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              pendingAmount > 0 ? 'Deuda Pendiente' : 'Sin Deudas',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                color: pendingAmount > 0 ? Colors.red : Colors.green,
+                              ),
+                            ),
+                            Text(
+                              '\$${pendingAmount.toStringAsFixed(0)}',
+                              style: TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: pendingAmount > 0 ? Colors.red : Colors.green,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
           ],
         ),
@@ -315,7 +372,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   '3. Servicios:',
                   style: TextStyle(fontWeight: FontWeight.bold),
                 ),
-                Text('• Revisión: \$30.000 fijos'),
+                Text('• Revisión: Precio según la sede'),
                 Text('• Servicio completo: Precio variable'),
               ],
             ),

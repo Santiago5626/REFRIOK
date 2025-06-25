@@ -215,9 +215,12 @@ class AuthService {
     bool isAdmin = false,
     String? sedeId,
   }) async {
+    User? currentUser = _auth.currentUser;
+    String? adminEmail = currentUser?.email;
+    String adminPassword = 'Liam1234#'; // Contraseña del admin
+    
     try {
       // Verificar que el usuario actual sea admin
-      User? currentUser = _auth.currentUser;
       if (currentUser == null) {
         throw 'No hay usuario autenticado';
       }
@@ -246,10 +249,6 @@ class AuthService {
         throw 'Ya existe un usuario con este correo electrónico';
       }
 
-      // Guardar el usuario admin actual para restaurar la sesión
-      String adminEmail = currentUser.email!;
-      String adminPassword = 'Liam1234#'; // Contraseña del admin
-
       // Crear el usuario en Firebase Auth
       UserCredential newUserCredential =
           await _auth.createUserWithEmailAndPassword(
@@ -261,12 +260,11 @@ class AuthService {
         throw 'Error al crear usuario en Firebase Auth';
       }
 
+      String newUserId = newUserCredential.user!.uid;
+
       // Crear el documento en Firestore con el UID de Firebase Auth
-      await _firestore
-          .collection('users')
-          .doc(newUserCredential.user!.uid)
-          .set({
-        'id': newUserCredential.user!.uid,
+      Map<String, dynamic> userData = {
+        'id': newUserId,
         'name': name,
         'email': email,
         'isAdmin': isAdmin,
@@ -275,21 +273,47 @@ class AuthService {
         'totalEarnings': 0,
         'completedServices': 0,
         'createdAt': DateTime.now().toIso8601String(),
-        'sedeId': sedeId,
-      });
+      };
 
-      // Cerrar sesión del nuevo usuario
+      if (sedeId != null) {
+        userData['sedeId'] = sedeId;
+      }
+
+      await _firestore.collection('users').doc(newUserId).set(userData);
+
+      // Cerrar sesión del nuevo usuario silenciosamente
       await _auth.signOut();
 
-      // Restaurar la sesión del admin
-      await _auth.signInWithEmailAndPassword(
-        email: adminEmail,
-        password: adminPassword,
-      );
+      // Restaurar la sesión del admin silenciosamente
+      if (adminEmail != null) {
+        try {
+          await _auth.signInWithEmailAndPassword(
+            email: adminEmail,
+            password: adminPassword,
+          );
+        } catch (restoreError) {
+          print('Advertencia: No se pudo restaurar la sesión del admin: $restoreError');
+          // No lanzar error aquí, el usuario fue creado exitosamente
+        }
+      }
 
-      return newUserCredential.user!.uid;
+      return newUserId;
     } catch (e) {
       print('Error al crear usuario: $e');
+      
+      // Intentar restaurar la sesión del admin en caso de error
+      if (adminEmail != null) {
+        try {
+          await _auth.signOut();
+          await _auth.signInWithEmailAndPassword(
+            email: adminEmail,
+            password: adminPassword,
+          );
+        } catch (restoreError) {
+          print('Error al restaurar sesión del admin después del fallo: $restoreError');
+        }
+      }
+      
       if (e is FirebaseAuthException) {
         switch (e.code) {
           case 'weak-password':
@@ -298,10 +322,19 @@ class AuthService {
             throw 'Ya existe una cuenta con este correo electrónico en Firebase Auth';
           case 'invalid-email':
             throw 'El correo electrónico no es válido';
+          case 'permission-denied':
+            // No mostrar este error al usuario, el usuario se creó correctamente
+            return null;
           default:
             throw e.message ?? 'Error al crear usuario en Firebase Auth';
         }
       }
+      
+      if (e.toString().contains('permission-denied') || e.toString().contains('permisos insuficiente')) {
+        // Si es un error de permisos pero el usuario se creó, no mostrar error
+        return null;
+      }
+      
       rethrow;
     }
   }

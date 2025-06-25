@@ -1,78 +1,86 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Función para verificar si el usuario está autenticado
-    function isAuth() {
-      return request.auth != null;
-    }
-    
-    // Función para verificar si el usuario es administrador
-    function isAdmin() {
-      return isAuth() && 
+    // Reglas para usuarios
+    match /users/{userId} {
+      // Los usuarios pueden leer su propia información y los admins pueden leer todos
+      allow read: if request.auth != null && (
+        request.auth.uid == userId || 
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true)
+      );
+      
+      // Permitir creación de usuarios en cualquier caso mientras haya un usuario autenticado
+      // Esto es necesario porque el proceso de crear usuario implica cambios de sesión
+      allow create: if request.auth != null;
+      
+      // Solo los admins pueden actualizar y eliminar usuarios
+      allow update, delete: if request.auth != null && 
         exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // Función para verificar si el usuario está bloqueado
-    function isBlocked() {
-      return exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
-        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isBlocked == true;
-    }
-    
-    // Reglas para la colección users
-    match /users/{userId} {
-      allow read: if isAuth() && (request.auth.uid == userId || isAdmin());
-      allow create: if isAuth() && (
-        request.auth.uid == userId || 
-        isAdmin() ||
-        (request.auth.email == 'josedavidlobo4@gmail.com')
-      );
-      allow update: if isAuth() && (request.auth.uid == userId || isAdmin());
-      allow delete: if isAdmin();
-    }
-    
-    // Reglas para la colección pending_users
-    match /pending_users/{userId} {
-      allow read, write: if isAdmin() || request.auth.email == 'josedavidlobo4@gmail.com';
-    }
-    
-    // Reglas para la colección services
+    // Reglas para servicios
     match /services/{serviceId} {
-      allow read: if isAuth() && (!exists(/databases/$(database)/documents/users/$(request.auth.uid)) || !isBlocked());
-      allow create: if isAuth();
-      allow update: if isAuth() && (
-        (resource.data.assignedTechnicianId == request.auth.uid) ||
-        isAdmin()
-      );
-      allow delete: if isAdmin();
+      // Los usuarios autenticados pueden leer servicios
+      allow read: if request.auth != null;
+      
+      // Solo los admins pueden crear servicios
+      allow create: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      
+      // Los admins pueden actualizar cualquier servicio
+      allow update: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+      
+      // Los técnicos pueden actualizar servicios asignados a ellos
+      allow update: if request.auth != null && 
+        resource.data.assignedTechnicianId == request.auth.uid;
+      
+      // Solo los admins pueden eliminar servicios
+      allow delete: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
     
-    // Reglas para la colección notifications
+    // Reglas para sedes
+    match /sedes/{sedeId} {
+      // Permitir lectura a todos los usuarios autenticados sin verificación adicional
+      allow read: if request.auth != null;
+      
+      // Solo los admins pueden crear, actualizar y eliminar sedes
+      allow create, update, delete: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
+    }
+    
+    // Regla alternativa más permisiva para sedes si hay problemas
+    match /sedes/{document=**} {
+      allow read: if request.auth != null;
+    }
+    
+    // Reglas para notificaciones
     match /notifications/{notificationId} {
-      // Los usuarios pueden leer sus propias notificaciones si no están bloqueados
-      allow read: if isAuth() && 
-        resource.data.userId == request.auth.uid && 
-        !isBlocked();
+      // Los usuarios pueden leer sus propias notificaciones
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
       
-      // Permitir crear notificaciones desde el servicio o admin
-      allow create: if isAuth() && (
-        // El admin puede crear notificaciones
-        isAdmin() ||
-        // El servicio puede crear notificaciones para el usuario correcto
-        (request.resource.data.userId == request.auth.uid)
-      );
+      // Los admins pueden leer todas las notificaciones
+      allow read: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
       
-      // Los usuarios pueden actualizar sus propias notificaciones (marcar como leída)
-      allow update: if isAuth() && 
-        resource.data.userId == request.auth.uid && 
-        !isBlocked() &&
-        // Solo permitir actualizar el campo isRead
-        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
+      // El sistema puede crear notificaciones
+      allow create: if request.auth != null;
       
-      // Los usuarios pueden eliminar sus propias notificaciones
-      allow delete: if isAuth() && 
-        (resource.data.userId == request.auth.uid || isAdmin()) &&
-        !isBlocked();
+      // Los usuarios pueden actualizar sus propias notificaciones (marcar como leídas)
+      allow update: if request.auth != null && resource.data.userId == request.auth.uid;
+      
+      // Los admins pueden actualizar cualquier notificación
+      allow update: if request.auth != null && 
+        exists(/databases/$(database)/documents/users/$(request.auth.uid)) &&
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true;
     }
   }
 }

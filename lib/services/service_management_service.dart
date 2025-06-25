@@ -61,6 +61,136 @@ class ServiceManagementService {
 
   final NotificationService _notificationService = NotificationService();
   final AuthService _authService = AuthService();
+  
+  // Verificar y bloquear técnicos con servicios impagos
+  Future<void> checkAndBlockTechnicians() async {
+    try {
+      // Obtener todos los servicios completados y no pagados
+      QuerySnapshot unpaidServices = await _firestore
+          .collection('services')
+          .where('status', isEqualTo: 'completed')
+          .where('isPaid', isEqualTo: false)
+          .get();
+
+      // Agrupar servicios por técnico
+      Map<String, List<Service>> servicesByTechnician = {};
+      
+      for (var doc in unpaidServices.docs) {
+        Service service = Service.fromMap({
+          'id': doc.id,
+          ...doc.data() as Map<String, dynamic>,
+        });
+        
+        if (service.assignedTechnicianId != null) {
+          if (!servicesByTechnician.containsKey(service.assignedTechnicianId)) {
+            servicesByTechnician[service.assignedTechnicianId!] = [];
+          }
+          servicesByTechnician[service.assignedTechnicianId!] ??= [];
+          servicesByTechnician[service.assignedTechnicianId!]?.add(service);
+        }
+      }
+
+      // Verificar cada técnico
+      for (var entry in servicesByTechnician.entries) {
+        String technicianId = entry.key;
+        List<Service> services = entry.value;
+        
+        // Verificar si hay servicios que requieren bloqueo
+        bool shouldBlock = services.any((service) => service.shouldBlockTechnician());
+        
+        if (shouldBlock) {
+          // Bloquear al técnico
+          await _firestore.collection('users').doc(technicianId).update({
+            'isBlocked': true,
+            'blockedAt': DateTime.now().toIso8601String(),
+            'blockReason': 'Servicios completados sin pago de comisión',
+          });
+
+          // Notificar al técnico
+          await _notificationService.notifyTechnicianBlocked(
+            technicianId: technicianId,
+            reason: 'Tienes servicios completados pendientes de pago',
+          );
+        }
+      }
+    } catch (e) {
+      print('Error al verificar y bloquear técnicos: $e');
+    }
+  }
+
+  // Marcar servicio como pagado (solo admin)
+  Future<bool> markServiceAsPaid(String serviceId) async {
+    try {
+      DocumentSnapshot serviceDoc = await _firestore
+          .collection('services')
+          .doc(serviceId)
+          .get();
+
+      if (!serviceDoc.exists) {
+        return false;
+      }
+
+      Service service = Service.fromMap({
+        'id': serviceDoc.id,
+        ...serviceDoc.data() as Map<String, dynamic>,
+      });
+
+      if (service.status != ServiceStatus.completed) {
+        throw Exception('Solo se pueden marcar como pagados los servicios completados');
+      }
+
+      await _firestore.collection('services').doc(serviceId).update({
+        'isPaid': true,
+        'paidAt': DateTime.now().toIso8601String(),
+        'status': ServiceStatus.paid.toString().split('.').last,
+      });
+
+      // Si el técnico estaba bloqueado, desbloquearlo
+      if (service.assignedTechnicianId != null) {
+        DocumentSnapshot technicianDoc = await _firestore
+            .collection('users')
+            .doc(service.assignedTechnicianId)
+            .get();
+
+        if (technicianDoc.exists) {
+          Map<String, dynamic> technicianData = 
+              technicianDoc.data() as Map<String, dynamic>;
+          
+          if (technicianData['isBlocked'] == true) {
+            // Verificar si tiene otros servicios pendientes de pago
+            QuerySnapshot unpaidServices = await _firestore
+                .collection('services')
+                .where('assignedTechnicianId', isEqualTo: service.assignedTechnicianId)
+                .where('status', isEqualTo: 'completed')
+                .where('isPaid', isEqualTo: false)
+                .get();
+
+            if (unpaidServices.docs.isEmpty) {
+              // No hay más servicios pendientes, desbloquear al técnico
+              await _firestore
+                  .collection('users')
+                  .doc(service.assignedTechnicianId)
+                  .update({
+                'isBlocked': false,
+                'blockedAt': null,
+                'blockReason': null,
+              });
+
+              // Notificar al técnico que ha sido desbloqueado
+              await _notificationService.notifyTechnicianUnblocked(
+                technicianId: service.assignedTechnicianId!,
+              );
+            }
+          }
+        }
+      }
+
+      return true;
+    } catch (e) {
+      print('Error al marcar servicio como pagado: $e');
+      return false;
+    }
+  }
 
   // Obtener el ID del administrador
   Future<String?> _getAdminId() async {
@@ -104,7 +234,7 @@ class ServiceManagementService {
       });
 
       // Enviar notificación al técnico
-      await NotificationService.notifyServiceAssignment(
+      await _notificationService.notifyServiceAssignment(
         technicianId: technicianId,
         serviceId: serviceId,
         serviceTitle: service.title,
@@ -115,7 +245,7 @@ class ServiceManagementService {
       // Notificar al admin sobre la asignación
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await NotificationService.notifyServiceStatusChange(
+        await _notificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'assigned',
@@ -154,7 +284,7 @@ class ServiceManagementService {
       // Notificar al admin
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await NotificationService.notifyServiceStatusChange(
+        await _notificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'onWay',
@@ -189,7 +319,7 @@ class ServiceManagementService {
 
       // Calcular precio final según el tipo de servicio
       double finalPrice = serviceType == ServiceType.revision
-          ? 30000.0 // Precio fijo para revisión
+          ? service.basePrice // Usar precio base de la sede para revisión
           : service.basePrice; // Precio base para servicio completo
 
       await _firestore.collection('services').doc(serviceId).update({
@@ -204,7 +334,7 @@ class ServiceManagementService {
       // Notificar al admin
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await NotificationService.notifyServiceStatusChange(
+        await _notificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'inProgress',
@@ -246,7 +376,7 @@ class ServiceManagementService {
       // Calcular precio final
       double calculatedPrice;
       if (serviceType == ServiceType.revision) {
-        calculatedPrice = 30000.0; // Precio fijo para revisión
+        calculatedPrice = service.basePrice; // Usar precio base de la sede para revisión
       } else if (finalPrice != null) {
         calculatedPrice =
             finalPrice; // Usar precio proporcionado para servicio completo
@@ -273,7 +403,7 @@ class ServiceManagementService {
       // Notificar al admin sobre la finalización
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await NotificationService.notifyServiceStatusChange(
+        await _notificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'completed',
@@ -303,24 +433,32 @@ class ServiceManagementService {
           ...serviceDoc.data() as Map<String, dynamic>,
         });
 
+        // Obtener todos los servicios completados del técnico
+        QuerySnapshot completedServices = await _firestore
+            .collection('services')
+            .where('assignedTechnicianId', isEqualTo: service.assignedTechnicianId)
+            .where('status', isEqualTo: 'completed')
+            .get();
+
+        // Calcular totales
+        double totalEarnings = 0.0;
+        int totalServices = completedServices.docs.length;
+
+        for (var doc in completedServices.docs) {
+          Service completedService = Service.fromMap({
+            'id': doc.id,
+            ...doc.data() as Map<String, dynamic>,
+          });
+          totalEarnings += completedService.technicianCommission;
+        }
+
         // Actualizar estadísticas del técnico
-        DocumentReference technicianRef =
-            _firestore.collection('users').doc(service.assignedTechnicianId!);
-
-        await _firestore.runTransaction((transaction) async {
-          DocumentSnapshot technicianDoc = await transaction.get(technicianRef);
-
-          if (technicianDoc.exists) {
-            Map<String, dynamic> data =
-                technicianDoc.data() as Map<String, dynamic>;
-            double currentEarnings = (data['totalEarnings'] ?? 0.0).toDouble();
-            int currentServices = data['completedServices'] ?? 0;
-
-            transaction.update(technicianRef, {
-              'totalEarnings': currentEarnings + service.technicianCommission,
-              'completedServices': currentServices + 1,
-            });
-          }
+        await _firestore
+            .collection('users')
+            .doc(service.assignedTechnicianId!)
+            .update({
+          'totalEarnings': totalEarnings,
+          'completedServices': totalServices,
         });
       }
     } catch (e) {
@@ -353,7 +491,7 @@ class ServiceManagementService {
       // Notificar al admin
       String? adminId = await _getAdminId();
       if (adminId != null) {
-        await NotificationService.notifyServiceStatusChange(
+        await _notificationService.notifyServiceStatusChange(
           serviceId: serviceId,
           serviceTitle: service.title,
           newStatus: 'cancelled',
@@ -567,7 +705,7 @@ class ServiceManagementService {
       });
 
       // Enviar notificación al técnico
-      await NotificationService.notifyServiceAssignment(
+      await _notificationService.notifyServiceAssignment(
         technicianId: technicianId,
         serviceId: serviceId,
         serviceTitle: service.title,

@@ -1,0 +1,12 @@
+{
+  "name": "firebase-indexes-creator",
+  "version": "1.0.0",
+  "description": "Script para crear índices en Firestore",
+  "main": "create_indexes.js",
+  "scripts": {
+    "create-indexes": "node create_indexes.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^11.11.1"
+  }
+}

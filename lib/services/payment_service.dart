@@ -1,26 +1,120 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../models/service.dart';
 
 class PaymentService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Marcar que un técnico pagó su comisión
+  // Obtener el total de comisiones pendientes de pago para un técnico
+  Future<double> getPendingCommissions(String technicianId) async {
+    try {
+      // Obtener todos los servicios completados pero no pagados del técnico
+      QuerySnapshot unpaidServices = await _firestore
+          .collection('services')
+          .where('assignedTechnicianId', isEqualTo: technicianId)
+          .where('status', isEqualTo: 'completed')
+          .where('isPaid', isEqualTo: false)
+          .get();
+
+      double totalPending = 0.0;
+
+      for (var doc in unpaidServices.docs) {
+        Service service = Service.fromMap({
+          'id': doc.id,
+          ...doc.data() as Map<String, dynamic>,
+        });
+
+        // Calcular la comisión del admin (30% del precio final)
+        totalPending += service.adminCommission;
+      }
+
+      return totalPending;
+    } catch (e) {
+      print('Error al calcular comisiones pendientes: $e');
+      return 0.0;
+    }
+  }
+
+  // Obtener el historial de pagos de un técnico
+  Future<List<Map<String, dynamic>>> getPaymentHistory(String technicianId) async {
+    try {
+      QuerySnapshot paidServices = await _firestore
+          .collection('services')
+          .where('assignedTechnicianId', isEqualTo: technicianId)
+          .where('isPaid', isEqualTo: true)
+          .orderBy('paidAt', descending: true)
+          .get();
+
+      return paidServices.docs.map((doc) {
+        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+        return {
+          'serviceId': doc.id,
+          'title': data['title'] ?? '',
+          'paidAt': data['paidAt'] != null ? DateTime.parse(data['paidAt']) : null,
+          'amount': (data['adminCommission'] ?? 0.0).toDouble(),
+        };
+      }).toList();
+    } catch (e) {
+      print('Error al obtener historial de pagos: $e');
+      return [];
+    }
+  }
+
+  // Verificar si un técnico tiene pagos pendientes
+  Future<bool> hasPendingPayments(String technicianId) async {
+    double pendingAmount = await getPendingCommissions(technicianId);
+    return pendingAmount > 0;
+  }
+
+  // Obtener el historial de pagos de un técnico como Stream
+  Stream<List<Map<String, dynamic>>> getTechnicianPayments(String technicianId) {
+    return _firestore
+        .collection('payments')
+        .where('technicianId', isEqualTo: technicianId)
+        .orderBy('paymentDate', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              Map<String, dynamic> data = doc.data();
+              return {
+                'id': doc.id,
+                'amount': (data['amount'] ?? 0.0).toDouble(),
+                'paymentDate': data['paymentDate'] ?? DateTime.now().toIso8601String(),
+                'description': data['description'] ?? '',
+              };
+            }).toList());
+  }
+
+  // Marcar comisión como pagada
   Future<bool> markCommissionPaid(String technicianId, double amount) async {
     try {
-      final now = DateTime.now();
-      
-      // Actualizar la fecha de último pago del técnico
-      await _firestore.collection('users').doc(technicianId).update({
-        'lastPaymentDate': now.toIso8601String(),
-        'isBlocked': false,
-      });
-
-      // Registrar el pago en el historial
+      // Crear registro de pago
       await _firestore.collection('payments').add({
         'technicianId': technicianId,
         'amount': amount,
-        'paymentDate': now.toIso8601String(),
-        'type': 'commission_payment',
-        'status': 'completed',
+        'paymentDate': DateTime.now().toIso8601String(),
+        'description': 'Pago de comisiones',
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+
+      // Marcar servicios como pagados
+      QuerySnapshot unpaidServices = await _firestore
+          .collection('services')
+          .where('assignedTechnicianId', isEqualTo: technicianId)
+          .where('status', isEqualTo: 'completed')
+          .where('isPaid', isEqualTo: false)
+          .get();
+
+      WriteBatch batch = _firestore.batch();
+      for (var doc in unpaidServices.docs) {
+        batch.update(doc.reference, {
+          'isPaid': true,
+          'paidAt': DateTime.now().toIso8601String(),
+        });
+      }
+      await batch.commit();
+
+      // Actualizar fecha de último pago del técnico
+      await _firestore.collection('users').doc(technicianId).update({
+        'lastPaymentDate': DateTime.now().toIso8601String(),
       });
 
       return true;
@@ -30,121 +124,12 @@ class PaymentService {
     }
   }
 
-  // Obtener historial de pagos de un técnico
-  Stream<List<Map<String, dynamic>>> getTechnicianPayments(String technicianId) {
-    return _firestore
-        .collection('payments')
-        .where('technicianId', isEqualTo: technicianId)
-        .orderBy('paymentDate', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => {
-                  'id': doc.id,
-                  ...doc.data(),
-                })
-            .toList());
-  }
-
-  // Obtener todos los pagos (para admin)
-  Stream<List<Map<String, dynamic>>> getAllPayments() {
-    return _firestore
-        .collection('payments')
-        .orderBy('paymentDate', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => {
-                  'id': doc.id,
-                  ...doc.data(),
-                })
-            .toList());
-  }
-
-  // Calcular comisiones pendientes de un técnico
-  Future<double> getPendingCommissions(String technicianId) async {
-    try {
-      // Obtener servicios completados desde la última fecha de pago
-      final userDoc = await _firestore.collection('users').doc(technicianId).get();
-      final userData = userDoc.data();
-      
-      DateTime? lastPaymentDate;
-      if (userData?['lastPaymentDate'] != null) {
-        lastPaymentDate = DateTime.parse(userData!['lastPaymentDate']);
-      }
-
-      Query query = _firestore
-          .collection('services')
-          .where('assignedTechnicianId', isEqualTo: technicianId)
-          .where('status', isEqualTo: 'completed');
-
-      if (lastPaymentDate != null) {
-        query = query.where('completedAt', isGreaterThan: lastPaymentDate.toIso8601String());
-      }
-
-      final snapshot = await query.get();
-      double totalCommissions = 0;
-
-      for (var doc in snapshot.docs) {
-        final serviceData = doc.data() as Map<String, dynamic>;
-        final basePrice = (serviceData['basePrice'] ?? 0.0).toDouble();
-        final serviceType = serviceData['serviceType'];
-        
-        double finalPrice;
-        if (serviceType == 'revision') {
-          finalPrice = 30000.0; // Precio fijo para revisión
-        } else {
-          finalPrice = basePrice;
-        }
-        
-        totalCommissions += finalPrice * 0.70; // 70% para el técnico
-      }
-
-      return totalCommissions;
-    } catch (e) {
-      print('Error al calcular comisiones pendientes: $e');
-      return 0;
-    }
-  }
-
-  // Bloquear técnicos que no han pagado (ejecutar automáticamente)
-  Future<void> blockOverdueTechnicians() async {
-    try {
-      final now = DateTime.now();
-      final deadline = DateTime(now.year, now.month, now.day, 22); // 10 PM
-
-      if (now.isAfter(deadline)) {
-        // Obtener todos los técnicos
-        final snapshot = await _firestore
-            .collection('users')
-            .where('isAdmin', isEqualTo: false)
-            .get();
-
-        WriteBatch batch = _firestore.batch();
-
-        for (var doc in snapshot.docs) {
-          final userData = doc.data();
-          final lastPaymentDate = userData['lastPaymentDate'] != null
-              ? DateTime.parse(userData['lastPaymentDate'])
-              : null;
-
-          // Si no ha pagado hoy, bloquear
-          if (lastPaymentDate == null || 
-              lastPaymentDate.isBefore(DateTime(now.year, now.month, now.day))) {
-            batch.update(doc.reference, {'isBlocked': true});
-          }
-        }
-
-        await batch.commit();
-      }
-    } catch (e) {
-      print('Error al bloquear técnicos: $e');
-    }
-  }
-
-  // Desbloquear técnico manualmente (para admin)
+  // Desbloquear técnico
   Future<bool> unblockTechnician(String technicianId) async {
     try {
       await _firestore.collection('users').doc(technicianId).update({
         'isBlocked': false,
+        'unblockedAt': DateTime.now().toIso8601String(),
       });
       return true;
     } catch (e) {

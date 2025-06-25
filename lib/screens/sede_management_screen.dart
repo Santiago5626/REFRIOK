@@ -221,6 +221,7 @@ class _SedeManagementScreenState extends State<SedeManagementScreen> {
                 validator: (value) =>
                     value?.isEmpty ?? true ? 'Campo requerido' : null,
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: valorBaseController,
                 decoration: const InputDecoration(
@@ -303,6 +304,7 @@ class _SedeManagementScreenState extends State<SedeManagementScreen> {
                 validator: (value) =>
                     value?.isEmpty ?? true ? 'Campo requerido' : null,
               ),
+              const SizedBox(height: 16),
               TextFormField(
                 controller: valorBaseController,
                 decoration: const InputDecoration(

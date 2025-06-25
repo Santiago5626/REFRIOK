@@ -20,9 +20,9 @@ async function createAdminUser() {
   try {
     // Crear usuario en Firebase Auth
     const userRecord = await auth.createUser({
-      uid: 'AxuMwpT71pM49Uv8gOjoOHPgNbW2',
-      email: 'josedavidlobo4@gmail.com',
-      password: 'Liam1234#',
+      uid: 'YOUR-ADMIN-UID',
+      email: 'admin@example.com',
+      password: 'YOUR-SECURE-PASSWORD',
       displayName: 'Administrador'
     });
 
@@ -33,7 +33,7 @@ async function createAdminUser() {
       id: userRecord.uid,
       username: 'admin',
       name: 'Administrador',
-      email: 'josedavidlobo4@gmail.com',
+      email: 'admin@example.com',
       isAdmin: true,
       isBlocked: false,
       lastPaymentDate: new Date().toISOString(),
@@ -49,18 +49,18 @@ async function createAdminUser() {
       console.log('El usuario ya existe, actualizando información...');
       
       // Actualizar usuario existente
-      await auth.updateUser('AxuMwpT71pM49Uv8gOjoOHPgNbW2', {
-        email: 'josedavidlobo4@gmail.com',
-        password: 'Liam1234#',
+      await auth.updateUser('YOUR-ADMIN-UID', {
+        email: 'admin@example.com',
+        password: 'YOUR-SECURE-PASSWORD',
         displayName: 'Administrador'
       });
 
       // Actualizar documento en Firestore
-      await firestore.collection('users').doc('AxuMwpT71pM49Uv8gOjoOHPgNbW2').set({
-        id: 'AxuMwpT71pM49Uv8gOjoOHPgNbW2',
+      await firestore.collection('users').doc('YOUR-ADMIN-UID').set({
+        id: 'YOUR-ADMIN-UID',
         username: 'admin',
         name: 'Administrador',
-        email: 'josedavidlobo4@gmail.com',
+        email: 'admin@example.com',
         isAdmin: true,
         isBlocked: false,
         lastPaymentDate: new Date().toISOString(),

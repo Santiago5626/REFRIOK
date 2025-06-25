@@ -4,7 +4,8 @@ enum ServiceStatus {
   onWay,      // Técnico en camino
   inProgress, // Técnico en el lugar
   completed,  // Servicio completado
-  cancelled   // Servicio cancelado
+  cancelled,  // Servicio cancelado
+  paid        // Servicio pagado al admin
 }
 
 enum ServiceType {
@@ -28,6 +29,8 @@ class Service {
   final DateTime? arrivedAt;
   final DateTime? completedAt;
   final Map<String, dynamic>? additionalDetails;
+  final bool isPaid;
+  final DateTime? paidAt;
 
   Service({
     required this.id,
@@ -45,19 +48,31 @@ class Service {
     this.arrivedAt,
     this.completedAt,
     this.additionalDetails,
+    this.isPaid = false,
+    this.paidAt,
   });
 
-  // Precio fijo para revisión
-  static const double revisionPrice = 30000.0;
-  
+  // Verifica si el técnico debe ser bloqueado automáticamente
+  bool shouldBlockTechnician() {
+    if (!isPaid && status == ServiceStatus.completed) {
+      final now = DateTime.now();
+      final deadline = DateTime(
+        completedAt!.year,
+        completedAt!.month,
+        completedAt!.day,
+        22, // 10 PM
+      );
+      return now.isAfter(deadline);
+    }
+    return false;
+  }
+
   // Porcentajes de comisión
   static const double adminCommissionRate = 0.30; // 30% para admin
   static const double technicianCommissionRate = 0.70; // 70% para técnico
 
   double get finalPrice {
-    if (serviceType == ServiceType.revision) {
-      return revisionPrice;
-    }
+    // Para revisiones y servicios completos, usar el precio base de la sede
     return basePrice;
   }
 
@@ -94,6 +109,8 @@ class Service {
       arrivedAt: map['arrivedAt'] != null ? DateTime.parse(map['arrivedAt']) : null,
       completedAt: map['completedAt'] != null ? DateTime.parse(map['completedAt']) : null,
       additionalDetails: map['additionalDetails'],
+      isPaid: map['isPaid'] ?? false,
+      paidAt: map['paidAt'] != null ? DateTime.parse(map['paidAt']) : null,
     );
   }
 
@@ -114,6 +131,8 @@ class Service {
       'arrivedAt': arrivedAt?.toIso8601String(),
       'completedAt': completedAt?.toIso8601String(),
       'additionalDetails': additionalDetails,
+      'isPaid': isPaid,
+      'paidAt': paidAt?.toIso8601String(),
     };
   }
 
@@ -133,6 +152,8 @@ class Service {
     DateTime? arrivedAt,
     DateTime? completedAt,
     Map<String, dynamic>? additionalDetails,
+    bool? isPaid,
+    DateTime? paidAt,
   }) {
     return Service(
       id: id ?? this.id,
@@ -150,6 +171,8 @@ class Service {
       arrivedAt: arrivedAt ?? this.arrivedAt,
       completedAt: completedAt ?? this.completedAt,
       additionalDetails: additionalDetails ?? this.additionalDetails,
+      isPaid: isPaid ?? this.isPaid,
+      paidAt: paidAt ?? this.paidAt,
     );
   }
 

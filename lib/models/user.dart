@@ -5,6 +5,8 @@ class User {
   final String email;
   final bool isAdmin;
   final bool isBlocked;
+  final DateTime? blockedAt;
+  final String? blockReason;
   final DateTime? lastPaymentDate;
   final double totalEarnings;
   final int completedServices;
@@ -17,6 +19,8 @@ class User {
     required this.email,
     this.isAdmin = false,
     this.isBlocked = false,
+    this.blockedAt,
+    this.blockReason,
     this.lastPaymentDate,
     this.totalEarnings = 0,
     this.completedServices = 0,
@@ -31,6 +35,10 @@ class User {
       email: map['email'] ?? '',
       isAdmin: map['isAdmin'] ?? false,
       isBlocked: map['isBlocked'] ?? false,
+      blockedAt: map['blockedAt'] != null
+          ? DateTime.parse(map['blockedAt'])
+          : null,
+      blockReason: map['blockReason'],
       lastPaymentDate: map['lastPaymentDate'] != null
           ? DateTime.parse(map['lastPaymentDate'])
           : null,
@@ -48,6 +56,8 @@ class User {
       'email': email,
       'isAdmin': isAdmin,
       'isBlocked': isBlocked,
+      'blockedAt': blockedAt?.toIso8601String(),
+      'blockReason': blockReason,
       'lastPaymentDate': lastPaymentDate?.toIso8601String(),
       'totalEarnings': totalEarnings,
       'completedServices': completedServices,
@@ -62,6 +72,8 @@ class User {
     String? email,
     bool? isAdmin,
     bool? isBlocked,
+    DateTime? blockedAt,
+    String? blockReason,
     DateTime? lastPaymentDate,
     double? totalEarnings,
     int? completedServices,
@@ -74,6 +86,8 @@ class User {
       email: email ?? this.email,
       isAdmin: isAdmin ?? this.isAdmin,
       isBlocked: isBlocked ?? this.isBlocked,
+      blockedAt: blockedAt ?? this.blockedAt,
+      blockReason: blockReason ?? this.blockReason,
       lastPaymentDate: lastPaymentDate ?? this.lastPaymentDate,
       totalEarnings: totalEarnings ?? this.totalEarnings,
       completedServices: completedServices ?? this.completedServices,

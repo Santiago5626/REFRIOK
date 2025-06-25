@@ -45,3 +45,23 @@ app.*.map.json
 /android/app/release
 /android/.gradle/
 node_modules
+
+# Firebase configuration
+lib/firebase_options.dart
+google-services.json
+GoogleService-Info.plist
+
+# Environment files
+.env
+.env.*
+
+# Local configuration
+deploy-firestore.bat
+firebase.json
+firestore.rules
+
+# Scripts with credentials
+scripts/create_admin_user.js
+scripts/create_admin_simple.js
+scripts/create_technician.js
+scripts/fix_admin_user.js

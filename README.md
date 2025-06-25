@@ -1,178 +1,155 @@
-# Tech Service App
+# REFRIOK - Sistema de Gestión de Servicios Técnicos
 
-Una aplicación Flutter para la gestión de servicios técnicos con Firebase como backend.
+Aplicación web desarrollada con Flutter para la gestión de servicios técnicos de refrigeración, con Firebase como backend.
 
-## Características
+## 🌟 Características Principales
 
-### 🔐 Sistema de Autenticación
-- Login seguro con Firebase Auth
-- Gestión de usuarios con roles (Admin/Técnico)
-- Sistema de bloqueo automático por falta de pago
-- Restablecimiento de contraseñas
+### Sistema de Usuarios
+- Roles diferenciados (Administrador/Técnico)
+- Gestión de perfiles y permisos
+- Sistema de bloqueo automático
+- Recuperación de contraseñas
 
-### 👨‍💼 Panel de Administración
-- **Gestión de Servicios**: Ver, crear y administrar servicios técnicos
-- **Gestión de Usuarios**: Crear, bloquear, desbloquear y eliminar usuarios
-- **Control de Pagos**: Registro de pagos y desbloqueo de usuarios
+### Gestión de Servicios
+- Creación y seguimiento de servicios técnicos
+- Estados del servicio (Pendiente, Asignado, En Camino, etc.)
+- Asignación de técnicos
+- Programación de fechas y horarios
 
-### 🛠️ Gestión de Servicios
-- Creación de servicios con información detallada del cliente
-- Estados de servicio: Pendiente, Asignado, En Camino, En Progreso, Completado, Cancelado
-- Cálculo automático de precios y comisiones
-- Programación de servicios con fecha y hora
+### Panel Administrativo
+- Gestión completa de usuarios
+- Control de pagos y comisiones
+- Reportes y estadísticas
+- Administración de sedes
 
-### 💰 Sistema de Pagos y Comisiones
-- Cálculo automático de comisiones para administradores
-- Seguimiento de ganancias totales por técnico
-- Control de pagos diarios para evitar bloqueos
+### Sistema de Pagos
+- Cálculo automático de comisiones
+- Seguimiento de pagos
+- Control de ganancias por técnico
+- Sistema de bloqueo por falta de pago
 
-## Configuración
-
-### Credenciales de Administrador
-- **Email**: josedavidlobo4@gmail.com
-- **Contraseña**: Liam1234#
-
-### Firebase Configuration
-La aplicación está configurada con el proyecto Firebase:
-- **Project ID**: tech-service-app-e9ade
-- **App ID**: 1:557548135367:web:641d2d1e48a036d99fafe2
-
-## Instalación y Ejecución
+## 🚀 Instalación
 
 ### Prerrequisitos
-- Flutter SDK (versión 3.0 o superior)
+- Flutter SDK (3.0 o superior)
 - Dart SDK
-- Navegador web moderno (Chrome, Edge, Firefox)
+- Navegador web moderno
+- Git
+- Proyecto Firebase configurado
 
 ### Pasos de Instalación
 
-1. **Clonar el repositorio**
-   ```bash
-   git clone <repository-url>
-   cd tech_service_app
-   ```
+1. Clonar el repositorio:
+```bash
+git clone https://github.com/santiago5626/REFRIOK.git
+cd REFRIOK
+```
 
-2. **Instalar dependencias**
-   ```bash
-   flutter pub get
-   ```
+2. Configurar Firebase:
+```bash
+# Copiar el archivo de ejemplo
+cp lib/firebase_options.example.dart lib/firebase_options.dart
 
-3. **Ejecutar la aplicación**
-   ```bash
-   flutter run -d chrome
-   ```
-   o para Edge:
-   ```bash
-   flutter run -d edge
-   ```
+# Editar el archivo con tus credenciales de Firebase
+# Reemplazar YOUR-API-KEY, YOUR-PROJECT-ID, etc. con los valores reales
+```
 
-## Uso de la Aplicación
+3. Instalar dependencias:
+```bash
+flutter pub get
+```
 
-### Primer Acceso (Administrador)
-1. Abrir la aplicación en el navegador
-2. Usar las credenciales de administrador:
-   - Email: `josedavidlobo4@gmail.com`
-   - Contraseña: `Liam1234#`
-3. El sistema creará automáticamente la cuenta de administrador en el primer login
+4. Ejecutar la aplicación:
+```bash
+flutter run -d chrome  # Para Chrome
+flutter run -d edge    # Para Edge
+```
+
+### Configuración de Firebase
+
+1. Crear un proyecto en [Firebase Console](https://console.firebase.google.com/)
+2. Habilitar Authentication y Firestore
+3. Configurar las reglas de seguridad de Firestore
+4. Obtener las credenciales del proyecto y actualizar `lib/firebase_options.dart`
+
+## 📱 Uso de la Aplicación
 
 ### Panel de Administración
-El panel tiene tres secciones principales:
 
-#### 📋 Servicios
-- Ver todos los servicios creados
-- Información detallada de cada servicio
-- Estados y progreso de los servicios
+#### Gestión de Servicios
+- Crear y asignar servicios
+- Seguimiento en tiempo real
+- Historial completo
 
-#### ➕ Crear Servicio
-- Formulario completo para crear nuevos servicios
-- Campos: título, descripción, ubicación, cliente, teléfono, precio, fecha/hora
-- Validación de datos
+#### Gestión de Usuarios
+- Alta y baja de técnicos
+- Control de accesos
+- Asignación a sedes
 
-#### 👥 Usuarios
-- Lista de todos los usuarios del sistema
-- Crear nuevos usuarios (técnicos o administradores)
-- Bloquear/desbloquear usuarios
-- Restablecer contraseñas
-- Eliminar usuarios (excepto administradores)
+#### Control de Pagos
+- Registro de pagos
+- Cálculo de comisiones
+- Control de bloqueos
 
-### Gestión de Usuarios
-- **Crear Usuario**: Botón "Crear Usuario" para agregar nuevos técnicos
-- **Menú de Acciones**: Clic en los tres puntos para acceder a:
-  - Restablecer contraseña
-  - Bloquear/desbloquear usuario
-  - Eliminar usuario
+### Panel de Técnicos
+- Vista de servicios asignados
+- Actualización de estados
+- Historial personal
+- Registro de ganancias
 
-## Estructura del Proyecto
+## 🏗️ Estructura del Proyecto
 
 ```
 lib/
-├── models/
-│   ├── user.dart           # Modelo de usuario
-│   └── service.dart        # Modelo de servicio
-├── services/
-│   ├── auth_service.dart   # Servicio de autenticación
-│   └── service_management_service.dart # Gestión de servicios
-├── screens/
-│   ├── login_screen.dart   # Pantalla de login
-│   ├── home_screen.dart    # Pantalla principal (técnicos)
-│   ├── admin_panel.dart    # Panel de administración
-│   └── profile_screen.dart # Perfil de usuario
-└── main.dart              # Punto de entrada de la aplicación
+├── models/          # Modelos de datos
+├── screens/         # Interfaces de usuario
+├── services/        # Lógica de negocio
+└── widgets/         # Componentes reutilizables
 ```
 
-## Funcionalidades Técnicas
+## 🔒 Seguridad
 
-### Firebase Integration
-- **Authentication**: Manejo de usuarios y sesiones
-- **Firestore**: Base de datos NoSQL para usuarios y servicios
-- **Security Rules**: Reglas de seguridad configuradas
+- Autenticación segura con Firebase
+- Reglas de Firestore configuradas
+- Protección de rutas
+- Validación de permisos
 
-### Estado de la Aplicación
-- Gestión de estado con StatefulWidget
-- Streams para actualizaciones en tiempo real
-- Validación de formularios
+## 💼 Reglas de Negocio
 
-### Responsive Design
-- Interfaz adaptable para diferentes tamaños de pantalla
-- Material Design components
-- Navegación intuitiva
+### Sistema de Comisiones
+- 70% para técnicos
+- 30% para administración
 
-## Reglas de Negocio
+### Control de Pagos
+- Verificación diaria de pagos
+- Bloqueo automático a las 10 PM
+- Sistema de desbloqueo manual
 
-### Sistema de Bloqueo
-- Los usuarios se bloquean automáticamente si no han pagado en las últimas 24 horas
-- Los administradores nunca se bloquean
-- El bloqueo se verifica en cada login
+## 🛠️ Tecnologías Utilizadas
 
-### Cálculo de Precios
-- **Revisión**: Precio base
-- **Servicio Completo**: Precio base × 1.5
-- **Comisión Admin**: 20% del precio final
+- Flutter Web
+- Firebase Authentication
+- Cloud Firestore
+- Material Design
 
-### Roles de Usuario
-- **Administrador**: Acceso completo al panel de administración
-- **Técnico**: Acceso a servicios asignados y perfil personal
+## 🤝 Contribución
 
-## Troubleshooting
+1. Fork el proyecto
+2. Cree su rama de características
+3. Commit sus cambios
+4. Push a la rama
+5. Abra un Pull Request
 
-### Problemas Comunes
+## 📄 Licencia
 
-1. **Error de autenticación**
-   - Verificar que las credenciales sean correctas
-   - Asegurarse de que Firebase esté configurado correctamente
+Este proyecto está bajo la Licencia MIT - vea el archivo [LICENSE](LICENSE) para más detalles.
 
-2. **No se cargan los datos**
-   - Verificar conexión a internet
-   - Revisar las reglas de Firestore
+## ✨ Agradecimientos
 
-3. **Error al crear usuario administrador**
-   - El sistema crea automáticamente el admin en el primer login
-   - No es necesario configuración adicional
-
-## Soporte
-
-Para soporte técnico o preguntas sobre la aplicación, contactar al administrador del sistema.
+- Equipo de desarrollo
+- Contribuidores
+- Comunidad Flutter
 
 ---
 
-**Desarrollado con Flutter y Firebase**
+**Desarrollado con ❤️ usando Flutter y Firebase**

@@ -130,7 +130,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 Navigator.pop(context);
                 _markArrivedWithType(ServiceType.revision);
               },
-              child: const Text('Solo Revisión (\$30.000)'),
+              child: Text('Solo Revisión (\$${widget.service.basePrice.toStringAsFixed(0)})'),
             ),
             TextButton(
               onPressed: () {
@@ -612,9 +612,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
-              const Text(
-                'Revisión: \$30.000 (Tu ganancia: \$21.000)',
-                style: TextStyle(fontSize: 14, color: Colors.grey),
+              Text(
+                'Revisión: \$${widget.service.basePrice.toStringAsFixed(0)} (Tu ganancia: \$${(widget.service.basePrice * 0.7).toStringAsFixed(0)})',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
             ],
           ],
@@ -907,6 +907,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         return Colors.green;
       case ServiceStatus.cancelled:
         return Colors.red;
+      case ServiceStatus.paid:
+        return Colors.green[700] ?? Colors.green;
     }
   }
 
@@ -924,6 +926,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         return 'Completado';
       case ServiceStatus.cancelled:
         return 'Cancelado';
+      case ServiceStatus.paid:
+        return 'Pagado';
     }
   }
 

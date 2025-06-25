@@ -8,6 +8,11 @@ import 'service_detail_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
 import 'notifications_screen.dart';
+import 'add_service_screen.dart';
+import 'reports_screen.dart';
+import 'users_management_screen.dart';
+import 'sede_management_screen.dart';
+import 'admin/payment_management_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,29 +42,56 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _signOut() async {
-    try {
-      await _authService.signOut();
-      if (!mounted) return;
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al cerrar sesión: ${e.toString()}'),
-          backgroundColor: Colors.red,
-          duration: const Duration(seconds: 5),
-          action: SnackBarAction(
-            label: 'OK',
-            textColor: Colors.white,
-            onPressed: () {
-              ScaffoldMessenger.of(context).hideCurrentSnackBar();
-            },
+    // Mostrar diálogo de confirmación
+    bool? shouldLogout = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Cerrar Sesión'),
+          content: const Text('¿Estás seguro de que deseas cerrar sesión?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Cerrar Sesión'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // Si el usuario confirmó, proceder con el cierre de sesión
+    if (shouldLogout == true) {
+      try {
+        await _authService.signOut();
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (context) => const LoginScreen()),
+        );
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al cerrar sesión: ${e.toString()}'),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 5),
+            action: SnackBarAction(
+              label: 'OK',
+              textColor: Colors.white,
+              onPressed: () {
+                ScaffoldMessenger.of(context).hideCurrentSnackBar();
+              },
+            ),
           ),
-        ),
-      );
+        );
+      }
     }
   }
 
@@ -165,13 +197,6 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          // Only show the index test button for admin users
-          if (_currentUser!.isAdmin)
-            IconButton(
-              icon: const Icon(Icons.build_circle),
-              tooltip: 'Test Índices Firestore',
-              onPressed: () => Navigator.pushNamed(context, '/index-test'),
-            ),
           // Solo mostrar botón de logout para administradores
           if (_currentUser!.isAdmin)
             IconButton(
@@ -184,8 +209,10 @@ class _HomeScreenState extends State<HomeScreen> {
         index: _selectedIndex,
         children: _currentUser!.isAdmin
             ? [
-                _buildServicesTab(),
-                ProfileScreen(initialUser: _currentUser!, onSignOut: _signOut),
+                _buildAdminServicesTab(),
+                _buildPaymentsTab(),
+                const UsersManagementScreen(),
+                const SedeManagementScreen(),
               ]
             : [
                 _buildServicesTab(),
@@ -198,14 +225,114 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildServicesTab() {
-    // Los administradores ven todos los servicios, los técnicos solo los disponibles
-    Stream<List<Service>> servicesStream = _currentUser!.isAdmin 
-        ? _serviceService.getAllServices()
-        : _serviceService.getAvailableServices();
+  Widget _buildAdminServicesTab() {
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.all(16.0),
+          child: Row(
+            children: [
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const AddServiceScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.add),
+                  label: const Text('Agregar Servicio'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF1E88E5),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 16),
+              Expanded(
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const ReportsScreen(),
+                      ),
+                    );
+                  },
+                  icon: const Icon(Icons.analytics),
+                  label: const Text('Reportes'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        Expanded(
+          child: StreamBuilder<List<Service>>(
+            stream: _serviceService.getAllServices(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
 
+              if (snapshot.hasError) {
+                return Center(child: Text('Error: ${snapshot.error}'));
+              }
+
+              List<Service> services = snapshot.data ?? [];
+
+              if (services.isEmpty) {
+                return const Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.work_off, size: 64, color: Colors.grey),
+                      SizedBox(height: 16),
+                      Text(
+                        'No hay servicios registrados',
+                        style: TextStyle(fontSize: 18, color: Colors.grey),
+                      ),
+                    ],
+                  ),
+                );
+              }
+
+              return RefreshIndicator(
+                onRefresh: () async => setState(() {}),
+                child: ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: services.length,
+                  itemBuilder: (context, index) {
+                    Service service = services[index];
+                    return _buildServiceCard(
+                      service,
+                      service.status == ServiceStatus.pending,
+                    );
+                  },
+                ),
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaymentsTab() {
+    return const PaymentManagementScreen();
+  }
+
+  Widget _buildServicesTab() {
+    // Los técnicos solo ven servicios disponibles
     return StreamBuilder<List<Service>>(
-      stream: servicesStream,
+      stream: _serviceService.getAvailableServices(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator());
@@ -220,7 +347,7 @@ class _HomeScreenState extends State<HomeScreen> {
         List<Service> services = snapshot.data ?? [];
 
         if (services.isEmpty) {
-          return Center(
+          return const Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -231,10 +358,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
                 SizedBox(height: 16),
                 Text(
-                  _currentUser!.isAdmin 
-                      ? 'No hay servicios registrados'
-                      : 'No hay servicios disponibles',
-                  style: const TextStyle(
+                  'No hay servicios disponibles',
+                  style: TextStyle(
                     fontSize: 18,
                     color: Colors.grey,
                   ),
@@ -253,12 +378,7 @@ class _HomeScreenState extends State<HomeScreen> {
             itemCount: services.length,
             itemBuilder: (context, index) {
               Service service = services[index];
-              // Para admin: isAvailable = true solo si el servicio está pendiente
-              // Para técnicos: siempre true porque solo ven servicios disponibles
-              bool isAvailable = _currentUser!.isAdmin 
-                  ? service.status == ServiceStatus.pending
-                  : true;
-              return _buildServiceCard(service, isAvailable);
+              return _buildServiceCard(service, true);
             },
           ),
         );
@@ -303,20 +423,62 @@ class _HomeScreenState extends State<HomeScreen> {
             ],
           ],
         ),
-        trailing: isAvailable
-            ? const Icon(Icons.arrow_forward_ios)
-            : _buildStatusChip(service.status),
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ServiceDetailScreen(
-                service: service,
-                isAvailable: isAvailable,
-              ),
-            ),
-          );
-        },
+        trailing: _currentUser!.isAdmin
+            ? PopupMenuButton<String>(
+                onSelected: (value) {
+                  if (value == 'delete') {
+                    _showDeleteConfirmation(service);
+                  } else if (value == 'view') {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ServiceDetailScreen(
+                          service: service,
+                          isAvailable: isAvailable,
+                        ),
+                      ),
+                    );
+                  }
+                },
+                itemBuilder: (BuildContext context) => [
+                  const PopupMenuItem<String>(
+                    value: 'view',
+                    child: Row(
+                      children: [
+                        Icon(Icons.visibility, size: 20),
+                        SizedBox(width: 8),
+                        Text('Ver detalles'),
+                      ],
+                    ),
+                  ),
+                  const PopupMenuItem<String>(
+                    value: 'delete',
+                    child: Row(
+                      children: [
+                        Icon(Icons.delete, color: Colors.red, size: 20),
+                        SizedBox(width: 8),
+                        Text('Eliminar', style: TextStyle(color: Colors.red)),
+                      ],
+                    ),
+                  ),
+                ],
+              )
+            : isAvailable
+                ? const Icon(Icons.arrow_forward_ios)
+                : _buildStatusChip(service.status),
+        onTap: _currentUser!.isAdmin
+            ? null
+            : () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ServiceDetailScreen(
+                      service: service,
+                      isAvailable: isAvailable,
+                    ),
+                  ),
+                );
+              },
       ),
     );
   }
@@ -348,6 +510,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return Colors.green;
       case ServiceStatus.cancelled:
         return Colors.red;
+      case ServiceStatus.paid:
+        return Colors.green[700] ?? Colors.green;
     }
   }
 
@@ -365,6 +529,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return Icons.check;
       case ServiceStatus.cancelled:
         return Icons.cancel;
+      case ServiceStatus.paid:
+        return Icons.paid;
     }
   }
 
@@ -382,6 +548,8 @@ class _HomeScreenState extends State<HomeScreen> {
         return 'Completado';
       case ServiceStatus.cancelled:
         return 'Cancelado';
+      case ServiceStatus.paid:
+        return 'Pagado';
     }
   }
 
@@ -393,6 +561,62 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _selectedIndex = index;
     });
+  }
+
+  Future<void> _showDeleteConfirmation(Service service) async {
+    bool? shouldDelete = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Eliminar Servicio'),
+          content: Text('¿Estás seguro de que deseas eliminar el servicio "${service.title}"?'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+              ),
+              child: const Text('Eliminar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldDelete == true) {
+      try {
+        bool success = await _serviceService.deleteService(service.id);
+        if (!mounted) return;
+        
+        if (success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Servicio eliminado exitosamente'),
+              backgroundColor: Colors.green,
+            ),
+          );
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Error al eliminar el servicio'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
+      } catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
   }
 
   Widget _buildMyServicesTab() {
@@ -539,18 +763,27 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildBottomNavigationBar() {
     if (_currentUser!.isAdmin) {
-      // Navegación para administradores (2 pestañas)
+      // Navegación para administradores (4 pestañas)
       return BottomNavigationBar(
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
+        type: BottomNavigationBarType.fixed,
         items: const [
           BottomNavigationBarItem(
             icon: Icon(Icons.work),
             label: 'Servicios',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Perfil',
+            icon: Icon(Icons.payments),
+            label: 'Pagos',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.people),
+            label: 'Usuarios',
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(Icons.location_city),
+            label: 'Sedes',
           ),
         ],
       );

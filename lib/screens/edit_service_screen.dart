@@ -501,6 +501,8 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         return 'completado';
       case ServiceStatus.cancelled:
         return 'cancelado';
+      case ServiceStatus.paid:
+        return 'pagado';
     }
   }
 }
