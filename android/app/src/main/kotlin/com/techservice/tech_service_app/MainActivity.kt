@@ -1,4 +1,4 @@
-package com.techservice.app
+package com.techservice.tech_service_app
 
 import io.flutter.embedding.android.FlutterActivity
 
