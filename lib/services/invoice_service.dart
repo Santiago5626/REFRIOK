@@ -1,30 +1,24 @@
 import 'dart:io';
-import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:intl/intl.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
-import 'package:path_provider/path_provider.dart';
-import 'package:intl/intl.dart';
 import '../models/service.dart';
-import '../models/user.dart' as app_user;
 
 class InvoiceService {
-  static Future<File> generateInvoice(Service service, app_user.User technician) async {
-    // Verificar que estamos en una plataforma móvil
-    if (kIsWeb) {
-      throw UnsupportedError('La generación de facturas no está soportada en web. Use la aplicación móvil.');
-    }
+  Future<File> generateInvoice(Service service) async {
     final pdf = pw.Document();
+    
+    // Cargar el logo
+    final ByteData logoBytes = await rootBundle.load('assets/images/logo.png');
+    final Uint8List logoData = logoBytes.buffer.asUint8List();
+    final logo = pw.MemoryImage(logoData);
 
-    // Formato para números
-    final currencyFormat = NumberFormat.currency(
-      locale: 'es_CR',
-      symbol: '₡',
-      decimalDigits: 0,
-    );
-
-    // Formato para fechas
-    final dateFormat = DateFormat('dd/MM/yyyy HH:mm');
-
+    // Calcular fecha de garantía (3 meses desde la fecha del servicio)
+    final serviceDate = service.createdAt;
+    final warrantyDate = serviceDate.add(const Duration(days: 90));
+    
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
@@ -32,106 +26,118 @@ class InvoiceService {
           return pw.Column(
             crossAxisAlignment: pw.CrossAxisAlignment.start,
             children: [
-              // Encabezado
-              pw.Header(
-                level: 0,
-                child: pw.Text('Factura de Servicio Técnico',
-                    style: pw.TextStyle(fontSize: 24)),
+              // Encabezado con logo
+              pw.Row(
+                mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                children: [
+                  pw.Image(logo, width: 150),
+                  pw.Column(
+                    crossAxisAlignment: pw.CrossAxisAlignment.end,
+                    children: [
+                      pw.Text('FACTURA DE SERVICIO',
+                          style: pw.TextStyle(
+                            fontSize: 20,
+                            fontWeight: pw.FontWeight.bold,
+                          )),
+                      pw.Text('Fecha: ${DateFormat('dd/MM/yyyy').format(DateTime.now())}'),
+                      pw.Text('No. Servicio: ${service.id}'),
+                    ],
+                  ),
+                ],
               ),
               pw.SizedBox(height: 20),
-
-              // Información del servicio
-              pw.Container(
-                padding: const pw.EdgeInsets.all(10),
-                decoration: pw.BoxDecoration(
-                  border: pw.Border.all(),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
-                ),
-                child: pw.Column(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Text('Detalles del Servicio',
-                        style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                    pw.SizedBox(height: 10),
-                    pw.Text('ID: ${service.id}'),
-                    pw.Text('Título: ${service.title}'),
-                    pw.Text('Descripción: ${service.description}'),
-                    pw.Text('Tipo: ${service.serviceType == ServiceType.revision ? "Revisión" : "Servicio Completo"}'),
-                    pw.Text('Fecha: ${dateFormat.format(service.completedAt ?? DateTime.now())}'),
-                  ],
-                ),
-              ),
-              pw.SizedBox(height: 20),
-
+              
               // Información del cliente
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Información del Cliente',
-                        style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                    pw.SizedBox(height: 10),
+                    pw.Text('DATOS DEL CLIENTE',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
                     pw.Text('Nombre: ${service.clientName}'),
+                    pw.Text('Dirección: ${service.location}'),
                     pw.Text('Teléfono: ${service.clientPhone}'),
-                    pw.Text('Ubicación: ${service.location}'),
                   ],
                 ),
               ),
               pw.SizedBox(height: 20),
-
-              // Información del técnico
+              
+              // Detalles del servicio
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Técnico Asignado',
-                        style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                    pw.SizedBox(height: 10),
-                    pw.Text('Nombre: ${technician.name}'),
-                    pw.Text('ID: ${technician.id}'),
+                    pw.Text('DETALLES DEL SERVICIO',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Tipo: ${service.serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}'),
+                    pw.Text('Descripción: ${service.description}'),
+                    if (service.additionalDetails != null && service.additionalDetails!.isNotEmpty) ...[
+                      if (service.additionalDetails!['diagnosis'] != null)
+                        pw.Text('Diagnóstico: ${service.additionalDetails!['diagnosis']}'),
+                      if (service.additionalDetails!['solution'] != null)
+                        pw.Text('Solución: ${service.additionalDetails!['solution']}'),
+                      if (service.additionalDetails!['observations'] != null)
+                        pw.Text('Observaciones: ${service.additionalDetails!['observations']}'),
+                    ],
                   ],
                 ),
               ),
               pw.SizedBox(height: 20),
-
-              // Detalles del pago
+              
+              // Información de pago
               pw.Container(
                 padding: const pw.EdgeInsets.all(10),
                 decoration: pw.BoxDecoration(
                   border: pw.Border.all(),
-                  borderRadius: const pw.BorderRadius.all(pw.Radius.circular(5)),
                 ),
                 child: pw.Column(
                   crossAxisAlignment: pw.CrossAxisAlignment.start,
                   children: [
-                    pw.Text('Detalles del Pago',
-                        style: pw.TextStyle(fontSize: 18, fontWeight: pw.FontWeight.bold)),
-                    pw.SizedBox(height: 10),
-                    pw.Text('Precio Base: ${currencyFormat.format(service.basePrice)}'),
-                    pw.Text('Precio Final: ${currencyFormat.format(service.finalPrice)}'),
-                    pw.Divider(),
-                    pw.Text('Comisión Técnico (70%): ${currencyFormat.format(service.technicianCommission)}'),
-                    pw.Text('Comisión Admin (30%): ${currencyFormat.format(service.adminCommission)}'),
+                    pw.Text('INFORMACIÓN DE PAGO',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Precio Final: \$${service.finalPrice.toStringAsFixed(0)}'),
+                    pw.Text('Estado: ${service.isPaid ? 'PAGADO' : 'PENDIENTE'}'),
                   ],
                 ),
               ),
-
-              // Pie de página
-              pw.Spacer(),
-              pw.Divider(),
-              pw.Text(
-                'Factura generada el ${dateFormat.format(DateTime.now())}',
-                style: pw.TextStyle(fontSize: 10, color: PdfColors.grey),
+              pw.SizedBox(height: 20),
+              
+              // Garantía
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                decoration: pw.BoxDecoration(
+                  border: pw.Border.all(),
+                ),
+                child: pw.Column(
+                  crossAxisAlignment: pw.CrossAxisAlignment.start,
+                  children: [
+                    pw.Text('GARANTÍA',
+                        style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
+                    pw.Text('Fecha del servicio: ${DateFormat('dd/MM/yyyy').format(serviceDate)}'),
+                    pw.Text('Válida hasta: ${DateFormat('dd/MM/yyyy').format(warrantyDate)}'),
+                  ],
+                ),
+              ),
+              pw.SizedBox(height: 20),
+              
+              // Nota importante
+              pw.Container(
+                padding: const pw.EdgeInsets.all(10),
+                child: pw.Text(
+                  'NOTA IMPORTANTE: En caso de que el cliente establezca un acuerdo directo con el técnico por fuera de los canales oficiales de REFRIOK, la empresa no asume responsabilidad alguna por los servicios prestados, ni ofrece garantía sobre los mismos.',
+                  style: pw.TextStyle(
+                    fontSize: 10,
+                    fontStyle: pw.FontStyle.italic,
+                  ),
+                ),
               ),
             ],
           );
@@ -139,28 +145,11 @@ class InvoiceService {
       ),
     );
 
-    // Guardar el PDF en el directorio de documentos para Android
-    Directory output;
-    try {
-      if (Platform.isAndroid) {
-        // Para Android, usar el directorio de documentos externos
-        output = await getExternalStorageDirectory() ?? await getTemporaryDirectory();
-      } else {
-        // Para iOS u otras plataformas
-        output = await getApplicationDocumentsDirectory();
-      }
-    } catch (e) {
-      // Fallback al directorio temporal
-      output = await getTemporaryDirectory();
-    }
-    
-    final String timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-    final String fileName = 'factura_${service.id}_$timestamp.pdf';
-    final file = File('${output.path}/$fileName');
-    
+    // Guardar el PDF
+    final output = await getTemporaryDirectory();
+    final file = File('${output.path}/factura_${service.id}.pdf');
     await file.writeAsBytes(await pdf.save());
     
-    print('Factura generada en: ${file.path}');
     return file;
   }
 }

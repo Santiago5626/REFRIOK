@@ -22,8 +22,8 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.blue[700],
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
       ),
       body: StreamBuilder<List<Service>>(
         stream: _serviceService.getAllServices(),

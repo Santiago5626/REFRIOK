@@ -15,7 +15,6 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   final SedeService _sedeService = SedeService();
   late TabController _tabController;
   String _selectedPeriod = 'today';
-  String? _selectedSedeId;
 
   @override
   void initState() {
@@ -34,8 +33,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     return Scaffold(
       appBar: AppBar(
         title: const Text('Reportes y Estadísticas'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
         bottom: TabBar(
           controller: _tabController,
           labelColor: Colors.white,
@@ -135,57 +134,16 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   }
 
   Widget _buildSedeTab() {
-    return Column(
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: StreamBuilder<List<Sede>>(
-            stream: _sedeService.getSedesActivas(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const CircularProgressIndicator();
-              }
+    return StreamBuilder<QuerySnapshot>(
+      stream: _getServicesStream(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-              final sedes = snapshot.data ?? [];
-              return DropdownButtonFormField<String>(
-                value: _selectedSedeId,
-                decoration: const InputDecoration(
-                  labelText: 'Seleccionar Sede',
-                  border: OutlineInputBorder(),
-                ),
-                items: [
-                  const DropdownMenuItem<String>(
-                    value: null,
-                    child: Text('Todas las Sedes'),
-                  ),
-                  ...sedes.map((sede) => DropdownMenuItem<String>(
-                    value: sede.id,
-                    child: Text(sede.nombre),
-                  )),
-                ],
-                onChanged: (value) {
-                  setState(() {
-                    _selectedSedeId = value;
-                  });
-                },
-              );
-            },
-          ),
-        ),
-        Expanded(
-          child: StreamBuilder<QuerySnapshot>(
-            stream: _getServicesStream(),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                return const Center(child: CircularProgressIndicator());
-              }
-
-              final services = snapshot.data?.docs ?? [];
-              return _buildSedeStats(services);
-            },
-          ),
-        ),
-      ],
+        final services = snapshot.data?.docs ?? [];
+        return _buildSedeStats(services);
+      },
     );
   }
 

@@ -145,6 +145,11 @@ class ServiceManagementService {
         'status': ServiceStatus.paid.toString().split('.').last,
       });
 
+      // Actualizar estadísticas del técnico después del pago
+      if (service.assignedTechnicianId != null) {
+        await _updateTechnicianStatsAfterPayment(service.assignedTechnicianId!);
+      }
+
       // Si el técnico estaba bloqueado, desbloquearlo
       if (service.assignedTechnicianId != null) {
         DocumentSnapshot technicianDoc = await _firestore
@@ -318,9 +323,12 @@ class ServiceManagementService {
       });
 
       // Calcular precio final según el tipo de servicio
-      double finalPrice = serviceType == ServiceType.revision
-          ? service.basePrice // Usar precio base de la sede para revisión
-          : service.basePrice; // Precio base para servicio completo
+      double finalPrice;
+      if (serviceType == ServiceType.revision) {
+        finalPrice = service.basePrice; // Usar precio base para revisión
+      } else {
+        finalPrice = 0; // Para servicio completo, el precio se establecerá al completar
+      }
 
       await _firestore.collection('services').doc(serviceId).update({
         'status': 'inProgress',
@@ -423,7 +431,7 @@ class ServiceManagementService {
   Future<void> _updateTechnicianStats(
       String serviceId, ServiceType serviceType) async {
     try {
-      // Obtener el servicio para calcular la comisión
+      // Obtener el servicio actual
       DocumentSnapshot serviceDoc =
           await _firestore.collection('services').doc(serviceId).get();
 
@@ -433,23 +441,37 @@ class ServiceManagementService {
           ...serviceDoc.data() as Map<String, dynamic>,
         });
 
-        // Obtener todos los servicios completados del técnico
-        QuerySnapshot completedServices = await _firestore
+        // Obtener todos los servicios del técnico
+        QuerySnapshot allServices = await _firestore
             .collection('services')
             .where('assignedTechnicianId', isEqualTo: service.assignedTechnicianId)
-            .where('status', isEqualTo: 'completed')
+            .where('status', whereIn: ['completed', 'paid'])
             .get();
 
         // Calcular totales
         double totalEarnings = 0.0;
-        int totalServices = completedServices.docs.length;
+        double pendingPayments = 0.0;
+        int completedServices = 0;
 
-        for (var doc in completedServices.docs) {
+        for (var doc in allServices.docs) {
           Service completedService = Service.fromMap({
             'id': doc.id,
             ...doc.data() as Map<String, dynamic>,
           });
-          totalEarnings += completedService.technicianCommission;
+
+          if (completedService.status == ServiceStatus.paid) {
+            // Sumar ganancias solo de servicios pagados
+            totalEarnings += completedService.technicianCommission;
+          } else if (completedService.status == ServiceStatus.completed) {
+            // Sumar a deudas pendientes los servicios completados pero no pagados
+            pendingPayments += completedService.technicianCommission;
+          }
+
+          // Contar todos los servicios completados (pagados o no)
+          if (completedService.status == ServiceStatus.completed || 
+              completedService.status == ServiceStatus.paid) {
+            completedServices++;
+          }
         }
 
         // Actualizar estadísticas del técnico
@@ -458,7 +480,8 @@ class ServiceManagementService {
             .doc(service.assignedTechnicianId!)
             .update({
           'totalEarnings': totalEarnings,
-          'completedServices': totalServices,
+          'completedServices': completedServices,
+          'pendingPayments': pendingPayments,
         });
       }
     } catch (e) {
@@ -760,12 +783,63 @@ class ServiceManagementService {
       });
 
       // Generar la factura usando el InvoiceService
-      File invoice = await InvoiceService.generateInvoice(service, technician);
+      final invoiceService = InvoiceService();
+      File invoice = await invoiceService.generateInvoice(service);
 
       return invoice;
     } catch (e) {
       print('Error al generar factura: $e');
       return null;
+    }
+  }
+
+  // Actualizar estadísticas del técnico después de un pago
+  Future<void> _updateTechnicianStatsAfterPayment(String technicianId) async {
+    try {
+      // Obtener todos los servicios del técnico
+      QuerySnapshot allServices = await _firestore
+          .collection('services')
+          .where('assignedTechnicianId', isEqualTo: technicianId)
+          .where('status', whereIn: ['completed', 'paid'])
+          .get();
+
+      // Calcular totales
+      double totalEarnings = 0.0;
+      double pendingPayments = 0.0;
+      int completedServices = 0;
+
+      for (var doc in allServices.docs) {
+        Service service = Service.fromMap({
+          'id': doc.id,
+          ...doc.data() as Map<String, dynamic>,
+        });
+
+        if (service.status == ServiceStatus.paid) {
+          // Sumar ganancias solo de servicios pagados
+          totalEarnings += service.technicianCommission;
+        } else if (service.status == ServiceStatus.completed) {
+          // Sumar a deudas pendientes los servicios completados pero no pagados
+          pendingPayments += service.technicianCommission;
+        }
+
+        // Contar todos los servicios completados (pagados o no)
+        if (service.status == ServiceStatus.completed || 
+            service.status == ServiceStatus.paid) {
+          completedServices++;
+        }
+      }
+
+      // Actualizar estadísticas del técnico
+      await _firestore
+          .collection('users')
+          .doc(technicianId)
+          .update({
+        'totalEarnings': totalEarnings,
+        'completedServices': completedServices,
+        'pendingPayments': pendingPayments,
+      });
+    } catch (e) {
+      print('Error al actualizar estadísticas después del pago: $e');
     }
   }
 

@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:open_file/open_file.dart';
 import '../models/service.dart';
 import '../models/user.dart' as app_user;
 import '../services/service_management_service.dart';
 import '../services/auth_service.dart';
+import '../services/invoice_service.dart';
 import 'edit_service_screen.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
@@ -348,6 +350,66 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     }
   }
 
+  Future<void> _downloadInvoice() async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (BuildContext context) {
+          return const AlertDialog(
+            content: Row(
+              children: [
+                CircularProgressIndicator(),
+                SizedBox(width: 20),
+                Text('Generando factura...'),
+              ],
+            ),
+          );
+        },
+      );
+
+      // Generar la factura
+      final invoiceService = InvoiceService();
+      final file = await invoiceService.generateInvoice(widget.service);
+
+      // Cerrar el diálogo de carga
+      if (mounted) Navigator.pop(context);
+
+      // Abrir el archivo PDF
+      final result = await OpenFile.open(file.path);
+      
+      if (result.type != ResultType.done) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error al abrir la factura: ${result.message}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Factura generada exitosamente'),
+            backgroundColor: Colors.green,
+          ),
+        );
+      }
+    } catch (e) {
+      // Cerrar el diálogo de carga si está abierto
+      if (mounted) Navigator.pop(context);
+      
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Error al generar la factura: $e'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_currentUser == null) {
@@ -377,6 +439,13 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       appBar: AppBar(
         title: Text(widget.service.title),
         actions: [
+          if (widget.service.status == ServiceStatus.completed || 
+              widget.service.status == ServiceStatus.paid)
+            IconButton(
+              icon: const Icon(Icons.download),
+              tooltip: 'Descargar Factura',
+              onPressed: _downloadInvoice,
+            ),
           if (_currentUser?.isAdmin == true &&
               widget.service.status != ServiceStatus.completed)
             IconButton(
@@ -391,7 +460,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 );
 
                 if (updated == true) {
-                  Navigator.pop(context); // Cerrar la pantalla de detalles
+                  Navigator.pop(context);
                 }
               },
             ),
