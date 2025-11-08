@@ -31,6 +31,7 @@ class Service {
   final Map<String, dynamic>? additionalDetails;
   final bool isPaid;
   final DateTime? paidAt;
+  final String? sedeId;
 
   Service({
     required this.id,
@@ -50,6 +51,7 @@ class Service {
     this.additionalDetails,
     this.isPaid = false,
     this.paidAt,
+    this.sedeId,
   });
 
   // Verifica si el técnico debe ser bloqueado automáticamente
@@ -111,6 +113,7 @@ class Service {
       additionalDetails: map['additionalDetails'],
       isPaid: map['isPaid'] ?? false,
       paidAt: map['paidAt'] != null ? DateTime.parse(map['paidAt']) : null,
+      sedeId: map['sedeId'],
     );
   }
 
@@ -133,6 +136,7 @@ class Service {
       'additionalDetails': additionalDetails,
       'isPaid': isPaid,
       'paidAt': paidAt?.toIso8601String(),
+      'sedeId': sedeId,
     };
   }
 
@@ -154,6 +158,7 @@ class Service {
     Map<String, dynamic>? additionalDetails,
     bool? isPaid,
     DateTime? paidAt,
+    String? sedeId,
   }) {
     return Service(
       id: id ?? this.id,
@@ -173,6 +178,7 @@ class Service {
       additionalDetails: additionalDetails ?? this.additionalDetails,
       isPaid: isPaid ?? this.isPaid,
       paidAt: paidAt ?? this.paidAt,
+      sedeId: sedeId ?? this.sedeId,
     );
   }
 

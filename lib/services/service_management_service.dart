@@ -48,7 +48,7 @@ class ServiceManagementService {
     return _firestore
         .collection('services')
         .where('assignedTechnicianId', isEqualTo: technicianId)
-        .where('status', isEqualTo: 'completed')
+        .where('status', whereIn: ['completed', 'paid'])
         .orderBy('completedAt', descending: true)
         .snapshots()
         .map((snapshot) => snapshot.docs
@@ -147,7 +147,7 @@ class ServiceManagementService {
 
       // Actualizar estadísticas del técnico después del pago
       if (service.assignedTechnicianId != null) {
-        await _updateTechnicianStatsAfterPayment(service.assignedTechnicianId!);
+        await _updateTechnicianStatsAfterPayment(service);
       }
 
       // Si el técnico estaba bloqueado, desbloquearlo
@@ -266,6 +266,46 @@ class ServiceManagementService {
     }
   }
 
+  Future<void> assignService(String serviceId, String technicianId) async {
+    // 1. Get the service details before updating
+    DocumentSnapshot serviceDoc = await _firestore.collection('services').doc(serviceId).get();
+    if (!serviceDoc.exists) {
+      throw Exception('Servicio no encontrado');
+    }
+    Service service = Service.fromMap({
+      'id': serviceDoc.id,
+      ...serviceDoc.data() as Map<String, dynamic>,
+    });
+
+    // 2. Update the service with the new technician and status
+    await _firestore.collection('services').doc(serviceId).update({
+      'assignedTechnicianId': technicianId,
+      'status': 'assigned',
+      'assignedAt': DateTime.now().toIso8601String(), // Track assignment time
+    });
+
+    // 3. Send a notification to the assigned technician
+    await _notificationService.notifyServiceAssignment(
+      technicianId: technicianId,
+      serviceId: service.id,
+      serviceTitle: service.title,
+      clientName: service.clientName,
+      location: service.location,
+    );
+
+    // 4. (Optional) Notify the admin that the service has been assigned
+    String? adminId = await _getAdminId();
+    if (adminId != null) {
+      await _notificationService.notifyServiceStatusChange(
+        serviceId: service.id,
+        serviceTitle: service.title,
+        newStatus: 'assigned',
+        technicianId: technicianId,
+        clientName: service.clientName,
+      );
+    }
+  }
+
   // Marcar que el técnico está en camino
   Future<bool> markOnWay(String serviceId) async {
     try {
@@ -366,32 +406,26 @@ class ServiceManagementService {
     double? finalPrice,
   }) async {
     try {
-      // Obtener el servicio actual para verificar si ya tiene tipo de servicio
-      DocumentSnapshot serviceDoc =
-          await _firestore.collection('services').doc(serviceId).get();
-
+      DocumentSnapshot serviceDoc = await _firestore.collection('services').doc(serviceId).get();
       if (!serviceDoc.exists) {
         return false;
       }
 
-      Map<String, dynamic> serviceData =
-          serviceDoc.data() as Map<String, dynamic>;
       Service service = Service.fromMap({
         'id': serviceDoc.id,
-        ...serviceData,
+        ...serviceDoc.data() as Map<String, dynamic>,
       });
 
-      // Calcular precio final
       double calculatedPrice;
       if (serviceType == ServiceType.revision) {
-        calculatedPrice = service.basePrice; // Usar precio base de la sede para revisión
+        calculatedPrice = service.basePrice;
       } else if (finalPrice != null) {
-        calculatedPrice =
-            finalPrice; // Usar precio proporcionado para servicio completo
+        calculatedPrice = finalPrice;
       } else {
-        throw Exception(
-            'Para servicios completos, se debe especificar el precio final');
+        throw Exception('Para servicios completos, se debe especificar el precio final');
       }
+
+      double technicianCommission = calculatedPrice * 0.7;
 
       Map<String, dynamic> updateData = {
         'status': 'completed',
@@ -399,16 +433,16 @@ class ServiceManagementService {
         'notes': notes,
         'serviceType': serviceType.toString().split('.').last,
         'finalPrice': calculatedPrice,
-        'technicianCommission': calculatedPrice * 0.7,
+        'technicianCommission': technicianCommission,
         'adminCommission': calculatedPrice * 0.3,
       };
 
       await _firestore.collection('services').doc(serviceId).update(updateData);
 
-      // Actualizar estadísticas del técnico
-      await _updateTechnicianStats(serviceId, serviceType);
+      if (service.assignedTechnicianId != null) {
+        await _updateTechnicianStatsOnCompletion(service.assignedTechnicianId!, technicianCommission);
+      }
 
-      // Notificar al admin sobre la finalización
       String? adminId = await _getAdminId();
       if (adminId != null) {
         await _notificationService.notifyServiceStatusChange(
@@ -427,72 +461,22 @@ class ServiceManagementService {
     }
   }
 
-  // Actualizar estadísticas del técnico
-  Future<void> _updateTechnicianStats(
-      String serviceId, ServiceType serviceType) async {
+  Future<void> _updateTechnicianStatsOnCompletion(String technicianId, double commission) async {
     try {
-      // Obtener el servicio actual
-      DocumentSnapshot serviceDoc =
-          await _firestore.collection('services').doc(serviceId).get();
-
-      if (serviceDoc.exists) {
-        Service service = Service.fromMap({
-          'id': serviceDoc.id,
-          ...serviceDoc.data() as Map<String, dynamic>,
-        });
-
-        // Obtener todos los servicios del técnico
-        QuerySnapshot allServices = await _firestore
-            .collection('services')
-            .where('assignedTechnicianId', isEqualTo: service.assignedTechnicianId)
-            .where('status', whereIn: ['completed', 'paid'])
-            .get();
-
-        // Calcular totales
-        double totalEarnings = 0.0;
-        double pendingPayments = 0.0;
-        int completedServices = 0;
-
-        for (var doc in allServices.docs) {
-          Service completedService = Service.fromMap({
-            'id': doc.id,
-            ...doc.data() as Map<String, dynamic>,
-          });
-
-          if (completedService.status == ServiceStatus.paid) {
-            // Sumar ganancias solo de servicios pagados
-            totalEarnings += completedService.technicianCommission;
-          } else if (completedService.status == ServiceStatus.completed) {
-            // Sumar a deudas pendientes los servicios completados pero no pagados
-            pendingPayments += completedService.technicianCommission;
-          }
-
-          // Contar todos los servicios completados (pagados o no)
-          if (completedService.status == ServiceStatus.completed || 
-              completedService.status == ServiceStatus.paid) {
-            completedServices++;
-          }
-        }
-
-        // Actualizar estadísticas del técnico
-        await _firestore
-            .collection('users')
-            .doc(service.assignedTechnicianId!)
-            .update({
-          'totalEarnings': totalEarnings,
-          'completedServices': completedServices,
-          'pendingPayments': pendingPayments,
-        });
-      }
+      final technicianRef = _firestore.collection('users').doc(technicianId);
+      await technicianRef.update({
+        'completedServices': FieldValue.increment(1),
+        'pendingPayments': FieldValue.increment(commission),
+      });
     } catch (e) {
       print('Error al actualizar estadísticas del técnico: $e');
+      rethrow;
     }
   }
 
   // Cancelar servicio
   Future<bool> cancelService(String serviceId, String reason) async {
     try {
-      // Obtener los detalles del servicio
       DocumentSnapshot serviceDoc =
           await _firestore.collection('services').doc(serviceId).get();
 
@@ -511,7 +495,6 @@ class ServiceManagementService {
         'cancelledAt': DateTime.now().toIso8601String(),
       });
 
-      // Notificar al admin
       String? adminId = await _getAdminId();
       if (adminId != null) {
         await _notificationService.notifyServiceStatusChange(
@@ -539,10 +522,10 @@ class ServiceManagementService {
     required String clientPhone,
     required DateTime scheduledFor,
     required double basePrice,
+    String? sedeId, // Added sedeId
     Map<String, dynamic>? additionalDetails,
   }) async {
     try {
-      // Determinar automáticamente el tipo de servicio si el precio base > 30000
       ServiceType? serviceType;
       double finalPrice = 0.0;
       double technicianCommission = 0.0;
@@ -570,7 +553,10 @@ class ServiceManagementService {
         'adminCommission': adminCommission,
       };
 
-      // Solo agregar serviceType si está definido
+      if (sedeId != null) {
+        serviceData['sedeId'] = sedeId;
+      }
+
       if (serviceType != null) {
         serviceData['serviceType'] = serviceType.toString().split('.').last;
       }
@@ -639,7 +625,6 @@ class ServiceManagementService {
       if (basePrice != null) {
         updateData['basePrice'] = basePrice;
 
-        // Recalcular comisiones si el servicio aún no está completado
         DocumentSnapshot serviceDoc =
             await _firestore.collection('services').doc(serviceId).get();
         if (serviceDoc.exists) {
@@ -647,7 +632,6 @@ class ServiceManagementService {
               serviceDoc.data() as Map<String, dynamic>;
           String status = serviceData['status'] ?? 'pending';
 
-          // Solo recalcular si el servicio no está completado
           if (status != 'completed') {
             if (basePrice > 30000) {
               updateData['finalPrice'] = basePrice;
@@ -655,7 +639,6 @@ class ServiceManagementService {
               updateData['adminCommission'] = basePrice * 0.3;
               updateData['serviceType'] = 'complete';
             } else {
-              // Si el precio es menor o igual a 30000, remover el tipo de servicio predefinido
               updateData['finalPrice'] = 0.0;
               updateData['technicianCommission'] = 0.0;
               updateData['adminCommission'] = 0.0;
@@ -707,7 +690,6 @@ class ServiceManagementService {
   // Asignar técnico a un servicio (para admin)
   Future<bool> assignTechnician(String serviceId, String technicianId) async {
     try {
-      // Obtener los detalles del servicio antes de actualizarlo
       DocumentSnapshot serviceDoc =
           await _firestore.collection('services').doc(serviceId).get();
 
@@ -720,14 +702,12 @@ class ServiceManagementService {
         ...serviceDoc.data() as Map<String, dynamic>,
       });
 
-      // Actualizar el estado del servicio
       await _firestore.collection('services').doc(serviceId).update({
         'assignedTechnicianId': technicianId,
         'status': 'assigned',
         'assignedAt': DateTime.now().toIso8601String(),
       });
 
-      // Enviar notificación al técnico
       await _notificationService.notifyServiceAssignment(
         technicianId: technicianId,
         serviceId: serviceId,
@@ -746,7 +726,6 @@ class ServiceManagementService {
   // Generar factura para un servicio completado
   Future<File?> generateInvoice(String serviceId) async {
     try {
-      // Obtener los detalles del servicio
       DocumentSnapshot serviceDoc =
           await _firestore.collection('services').doc(serviceId).get();
 
@@ -760,13 +739,11 @@ class ServiceManagementService {
         ...serviceDoc.data() as Map<String, dynamic>,
       });
 
-      // Verificar que el servicio esté completado
       if (service.status != ServiceStatus.completed) {
         print('Error: El servicio no está completado');
         return null;
       }
 
-      // Obtener los detalles del técnico
       DocumentSnapshot technicianDoc = await _firestore
           .collection('users')
           .doc(service.assignedTechnicianId)
@@ -782,7 +759,6 @@ class ServiceManagementService {
         ...technicianDoc.data() as Map<String, dynamic>,
       });
 
-      // Generar la factura usando el InvoiceService
       final invoiceService = InvoiceService();
       File invoice = await invoiceService.generateInvoice(service);
 
@@ -794,59 +770,24 @@ class ServiceManagementService {
   }
 
   // Actualizar estadísticas del técnico después de un pago
-  Future<void> _updateTechnicianStatsAfterPayment(String technicianId) async {
+  Future<void> _updateTechnicianStatsAfterPayment(Service service) async {
     try {
-      // Obtener todos los servicios del técnico
-      QuerySnapshot allServices = await _firestore
-          .collection('services')
-          .where('assignedTechnicianId', isEqualTo: technicianId)
-          .where('status', whereIn: ['completed', 'paid'])
-          .get();
-
-      // Calcular totales
-      double totalEarnings = 0.0;
-      double pendingPayments = 0.0;
-      int completedServices = 0;
-
-      for (var doc in allServices.docs) {
-        Service service = Service.fromMap({
-          'id': doc.id,
-          ...doc.data() as Map<String, dynamic>,
+      if (service.assignedTechnicianId != null) {
+        final technicianRef = _firestore.collection('users').doc(service.assignedTechnicianId!);
+        await technicianRef.update({
+          'totalEarnings': FieldValue.increment(service.technicianCommission),
+          'pendingPayments': FieldValue.increment(-service.technicianCommission),
         });
-
-        if (service.status == ServiceStatus.paid) {
-          // Sumar ganancias solo de servicios pagados
-          totalEarnings += service.technicianCommission;
-        } else if (service.status == ServiceStatus.completed) {
-          // Sumar a deudas pendientes los servicios completados pero no pagados
-          pendingPayments += service.technicianCommission;
-        }
-
-        // Contar todos los servicios completados (pagados o no)
-        if (service.status == ServiceStatus.completed || 
-            service.status == ServiceStatus.paid) {
-          completedServices++;
-        }
       }
-
-      // Actualizar estadísticas del técnico
-      await _firestore
-          .collection('users')
-          .doc(technicianId)
-          .update({
-        'totalEarnings': totalEarnings,
-        'completedServices': completedServices,
-        'pendingPayments': pendingPayments,
-      });
     } catch (e) {
       print('Error al actualizar estadísticas después del pago: $e');
+      rethrow;
     }
   }
 
   // Imprimir o mostrar vista previa de la factura
   Future<void> previewInvoice(String serviceId, BuildContext context) async {
     try {
-      // Solicitar permisos primero
       bool hasPermission =
           await PermissionService.requestStoragePermission(context);
       if (!hasPermission) {
@@ -868,7 +809,6 @@ class ServiceManagementService {
           await Printing.layoutPdf(
             onLayout: (_) => invoice.readAsBytes(),
           );
-          // Mostrar mensaje de éxito con la ubicación del archivo
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Factura guardada en: ${invoice.path}'),

@@ -498,6 +498,17 @@ class AuthService {
       return [];
     }
   }
+  
+  Stream<List<app_user.User>> getAllUsers() {
+    return _firestore.collection('users').snapshots().map((snapshot) {
+      return snapshot.docs.map((doc) {
+        return app_user.User.fromMap({
+          'id': doc.id,
+          ...doc.data(),
+        });
+      }).toList();
+    });
+  }
 
   // Obtener usuario por ID
   Future<app_user.User?> getUserById(String userId) async {

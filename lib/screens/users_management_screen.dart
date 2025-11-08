@@ -282,7 +282,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
 
     showDialog(
       context: context,
-      builder: (context) => StatefulBuilder(
+      builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
           title: const Text('Crear Usuario'),
           content: Form(
@@ -434,7 +434,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.pop(context),
+              onPressed: () => Navigator.pop(dialogContext),
               child: const Text('Cancelar'),
             ),
             ElevatedButton(
@@ -448,9 +448,8 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                       isAdmin: isAdmin,
                       sedeId: isAdmin ? null : selectedSedeId,
                     );
-
-                    if (!mounted) return;
-                    Navigator.pop(context);
+                    
+                    Navigator.pop(dialogContext); // Close the dialog
 
                     if (userId != null) {
                       ScaffoldMessenger.of(context).showSnackBar(
@@ -480,8 +479,6 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                       );
                     }
                   } catch (e) {
-                    if (!mounted) return;
-                    Navigator.pop(context);
                     ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(
                         content: Row(

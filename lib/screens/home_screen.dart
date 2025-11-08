@@ -4,6 +4,7 @@ import '../services/service_management_service.dart';
 import '../services/notification_service.dart';
 import '../models/service.dart';
 import '../models/user.dart' as app_user;
+import '../utils/dialog_utils.dart';
 import 'service_detail_screen.dart';
 import 'profile_screen.dart';
 import 'login_screen.dart';
@@ -77,20 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al cerrar sesión: ${e.toString()}'),
-            backgroundColor: Colors.red,
-            duration: const Duration(seconds: 5),
-            action: SnackBarAction(
-              label: 'OK',
-              textColor: Colors.white,
-              onPressed: () {
-                ScaffoldMessenger.of(context).hideCurrentSnackBar();
-              },
-            ),
-          ),
-        );
+        showAnimatedDialog(context, DialogType.error, e.toString());
       }
     }
   }
@@ -215,7 +203,6 @@ class _HomeScreenState extends State<HomeScreen> {
                 const SedeManagementScreen(),
               ]
             : [
-                _buildServicesTab(),
                 _buildMyServicesTab(),
                 _buildHistoryTab(),
                 ProfileScreen(initialUser: _currentUser!, onSignOut: _signOut),
@@ -426,7 +413,9 @@ class _HomeScreenState extends State<HomeScreen> {
         trailing: _currentUser!.isAdmin
             ? PopupMenuButton<String>(
                 onSelected: (value) {
-                  if (value == 'delete') {
+                  if (value == 'assign') {
+                    _showAssignDialog(service);
+                  } else if (value == 'delete') {
                     _showDeleteConfirmation(service);
                   } else if (value == 'view') {
                     Navigator.push(
@@ -440,28 +429,56 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   }
                 },
-                itemBuilder: (BuildContext context) => [
-                  const PopupMenuItem<String>(
-                    value: 'view',
-                    child: Row(
-                      children: [
-                        Icon(Icons.visibility, size: 20),
-                        SizedBox(width: 8),
-                        Text('Ver detalles'),
-                      ],
+                itemBuilder: (BuildContext context) {
+                  final items = <PopupMenuEntry<String>>[
+                    const PopupMenuItem<String>(
+                      value: 'view',
+                      child: Row(
+                        children: [
+                          Icon(Icons.visibility, size: 20),
+                          SizedBox(width: 8),
+                          Text('Ver detalles'),
+                        ],
+                      ),
                     ),
-                  ),
-                  const PopupMenuItem<String>(
-                    value: 'delete',
-                    child: Row(
-                      children: [
-                        Icon(Icons.delete, color: Colors.red, size: 20),
-                        SizedBox(width: 8),
-                        Text('Eliminar', style: TextStyle(color: Colors.red)),
-                      ],
+                  ];
+
+                  // Allow (re)assignment if the service is not completed, cancelled, or paid
+                  if (service.status == ServiceStatus.pending ||
+                      service.status == ServiceStatus.assigned ||
+                      service.status == ServiceStatus.onWay ||
+                      service.status == ServiceStatus.inProgress) {
+                    items.add(
+                      PopupMenuItem<String>(
+                        value: 'assign',
+                        child: Row(
+                          children: [
+                            const Icon(Icons.assignment_ind, size: 20),
+                            const SizedBox(width: 8),
+                            Text(service.status == ServiceStatus.pending
+                                ? 'Asignar'
+                                : 'Reasignar'),
+                          ],
+                        ),
+                      ),
+                    );
+                  }
+
+                  items.add(
+                    const PopupMenuItem<String>(
+                      value: 'delete',
+                      child: Row(
+                        children: [
+                          Icon(Icons.delete, color: Colors.red, size: 20),
+                          SizedBox(width: 8),
+                          Text('Eliminar', style: TextStyle(color: Colors.red)),
+                        ],
+                      ),
                     ),
-                  ),
-                ],
+                  );
+
+                  return items;
+                },
               )
             : isAvailable
                 ? const Icon(Icons.arrow_forward_ios)
@@ -481,6 +498,58 @@ class _HomeScreenState extends State<HomeScreen> {
               },
       ),
     );
+  }
+
+  Future<void> _showAssignDialog(Service service) async {
+    final BuildContext currentContext = context;
+    // 1. Fetch all users once
+    List<app_user.User> allUsers = await _authService.getAllUsers().first;
+
+    // 2. Filter technicians based on the service's sedeId
+    // If service.sedeId is null, this will show all technicians (graceful fallback)
+    List<app_user.User> technicians = allUsers
+        .where((user) =>
+            !user.isAdmin &&
+            (service.sedeId == null || user.sedeId == service.sedeId))
+        .toList();
+
+    // 3. Show the dialog with the filtered list
+    app_user.User? selectedTechnician = await showDialog<app_user.User>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Asignar Técnico'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: technicians.isEmpty
+                ? const Text('No hay técnicos disponibles para esta sede.')
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: technicians.length,
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        title: Text(technicians[index].name),
+                        onTap: () {
+                          Navigator.of(context).pop(technicians[index]);
+                        },
+                      );
+                    },
+                  ),
+          ),
+        );
+      },
+    );
+
+    if (selectedTechnician != null) {
+      try {
+        await _serviceService.assignService(service.id, selectedTechnician.id);
+        if (!mounted) return;
+        showAnimatedDialog(currentContext, DialogType.success, 'Servicio asignado correctamente');
+      } catch (e) {
+        if (!mounted) return;
+        showAnimatedDialog(currentContext, DialogType.error, e.toString());
+      }
+    }
   }
 
   Widget _buildStatusChip(ServiceStatus status) {
@@ -593,28 +662,13 @@ class _HomeScreenState extends State<HomeScreen> {
         if (!mounted) return;
         
         if (success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Servicio eliminado exitosamente'),
-              backgroundColor: Colors.green,
-            ),
-          );
+          showAnimatedDialog(context, DialogType.success, 'Servicio eliminado exitosamente');
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Error al eliminar el servicio'),
-              backgroundColor: Colors.red,
-            ),
-          );
+          showAnimatedDialog(context, DialogType.error, 'Error al eliminar el servicio');
         }
       } catch (e) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error: ${e.toString()}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAnimatedDialog(context, DialogType.error, e.toString());
       }
     }
   }
@@ -788,16 +842,12 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       );
     } else {
-      // Navegación para técnicos (4 pestañas)
+      // Navegación para técnicos (3 pestañas)
       return BottomNavigationBar(
         type: BottomNavigationBarType.fixed,
         currentIndex: _selectedIndex,
         onTap: _onItemTapped,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.work),
-            label: 'Servicios',
-          ),
           BottomNavigationBarItem(
             icon: Icon(Icons.assignment),
             label: 'Mis Servicios',

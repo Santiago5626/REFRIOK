@@ -88,14 +88,65 @@ class MyApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatelessWidget {
+class AuthWrapper extends StatefulWidget {
   const AuthWrapper({super.key});
 
   @override
+  State<AuthWrapper> createState() => _AuthWrapperState();
+}
+
+class _AuthWrapperState extends State<AuthWrapper> {
+  Stream<User?>? _authStream;
+  Object? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    // Move the potentially failing call to initState and wrap in a try-catch.
+    try {
+      _authStream = FirebaseAuth.instance.authStateChanges();
+    } catch (e) {
+      // If it fails, store the error to show it in the build method.
+      _error = e;
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    // If an error occurred during initialization, display it.
+    if (_error != null) {
+      return Scaffold(
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'Ocurrió un error al inicializar la autenticación de Firebase. '
+              'Esto puede deberse a un problema de configuración o de conexión con los servicios de Google.\n\n'
+              'Error: $_error',
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+    }
+    
+    // Show a loading indicator while the stream is being initialized.
+    if (_authStream == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
+
+    // If initialization was successful, use the StreamBuilder.
     return StreamBuilder<User?>(
-      stream: FirebaseAuth.instance.authStateChanges(),
+      stream: _authStream!,
       builder: (context, snapshot) {
+        if (snapshot.hasError) {
+          return const Scaffold(
+            body: Center(
+              child: Text('Error de autenticación. Verifique su conexión.'),
+            ),
+          );
+        }
+
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Scaffold(
             body: Center(
@@ -116,7 +167,20 @@ class AuthWrapper extends StatelessWidget {
                 );
               }
 
-              return const HomeScreen();
+              if (userSnapshot.hasError) {
+                return const Scaffold(
+                  body: Center(
+                    child: Text('Error al cargar los datos del usuario.'),
+                  ),
+                );
+              }
+
+              if (userSnapshot.hasData && userSnapshot.data != null) {
+                return const HomeScreen();
+              } else {
+                // This can happen if the user exists in Auth but not in Firestore.
+                return const LoginScreen();
+              }
             },
           );
         } else {

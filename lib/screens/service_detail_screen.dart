@@ -132,7 +132,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 Navigator.pop(context);
                 _markArrivedWithType(ServiceType.revision);
               },
-              child: Text('Solo Revisión (\$${widget.service.basePrice.toStringAsFixed(0)})'),
+              child: Text(
+                'Solo Revisión (\$${widget.service.basePrice.toStringAsFixed(0)})',
+              ),
             ),
             TextButton(
               onPressed: () {
@@ -189,8 +191,10 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     }
   }
 
-  Future<void> _completeService(ServiceType serviceType,
-      {double? finalPrice}) async {
+  Future<void> _completeService(
+    ServiceType serviceType, {
+    double? finalPrice,
+  }) async {
     setState(() {
       _isLoading = true;
     });
@@ -263,8 +267,10 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   if (priceController.text.isNotEmpty) {
                     try {
                       double finalPrice = double.parse(priceController.text);
-                      _completeService(ServiceType.complete,
-                          finalPrice: finalPrice);
+                      _completeService(
+                        ServiceType.complete,
+                        finalPrice: finalPrice,
+                      );
                     } catch (e) {
                       ScaffoldMessenger.of(context).showSnackBar(
                         const SnackBar(
@@ -318,14 +324,18 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   }
 
   Future<void> _callClient() async {
-    final Uri phoneUri = Uri(scheme: 'tel', path: widget.service.clientPhone);
-    if (await canLaunchUrl(phoneUri)) {
-      await launchUrl(phoneUri);
-    } else {
+    final Uri phoneUri = Uri.parse('tel:${widget.service.clientPhone}');
+    try {
+      if (await canLaunchUrl(phoneUri)) {
+        await launchUrl(phoneUri);
+      } else {
+        throw 'Could not launch $phoneUri';
+      }
+    } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se puede realizar la llamada'),
+        SnackBar(
+          content: Text('No se puede realizar la llamada: $e'),
           backgroundColor: Colors.red,
         ),
       );
@@ -334,8 +344,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
   Future<void> _openMaps() async {
     final String query = Uri.encodeComponent(widget.service.location);
-    final Uri mapsUri =
-        Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    final Uri mapsUri = Uri.parse(
+      'https://www.google.com/maps/search/?api=1&query=$query',
+    );
 
     if (await canLaunchUrl(mapsUri)) {
       await launchUrl(mapsUri);
@@ -378,7 +389,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
       // Abrir el archivo PDF
       final result = await OpenFile.open(file.path);
-      
+
       if (result.type != ResultType.done) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -399,7 +410,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     } catch (e) {
       // Cerrar el diálogo de carga si está abierto
       if (mounted) Navigator.pop(context);
-      
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -413,9 +424,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   @override
   Widget build(BuildContext context) {
     if (_currentUser == null) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // Si es un servicio asignado y el usuario no es el técnico asignado ni admin
@@ -423,9 +432,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         !_currentUser!.isAdmin &&
         widget.service.assignedTechnicianId != _currentUser!.id) {
       return Scaffold(
-        appBar: AppBar(
-          title: const Text('Acceso Denegado'),
-        ),
+        appBar: AppBar(title: const Text('Acceso Denegado')),
         body: const Center(
           child: Text(
             'No tienes acceso a los detalles de este servicio',
@@ -439,7 +446,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       appBar: AppBar(
         title: Text(widget.service.title),
         actions: [
-          if (widget.service.status == ServiceStatus.completed || 
+          if (widget.service.status == ServiceStatus.completed ||
               widget.service.status == ServiceStatus.paid)
             IconButton(
               icon: const Icon(Icons.download),
@@ -500,10 +507,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           children: [
             const Text(
               'Información del Servicio',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Text(
@@ -558,10 +562,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           children: [
             const Text(
               'Información del Cliente',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Row(
@@ -609,10 +610,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           children: [
             const Text(
               'Ubicación',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             Row(
@@ -647,10 +645,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           children: [
             const Text(
               'Información de Pago',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-              ),
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
             if (widget.service.serviceType != null) ...[
@@ -703,8 +698,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         // Los administradores pueden asignar servicios a técnicos
         return _buildAssignServiceButton();
       } else {
-        // Los técnicos no pueden aceptar servicios, se les asignan
-        return const SizedBox.shrink();
+        // Los técnicos pueden aceptar servicios disponibles
+        return _buildAcceptServiceButton();
       }
     }
 
@@ -731,10 +726,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     )
                   : const Text(
                       'Marcar como En Camino',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
             ),
           );
@@ -759,10 +751,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     )
                   : const Text(
                       'Marcar Llegada',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
             ),
           );
@@ -787,10 +776,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     )
                   : const Text(
                       'Completar Servicio',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white,
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
             ),
           );
@@ -802,6 +788,32 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
     // Los administradores solo ven información, no botones de acción para servicios asignados
     return const SizedBox.shrink();
+  }
+
+  Widget _buildAcceptServiceButton() {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton(
+        onPressed: _isLoading ? null : _acceptService,
+        style: ElevatedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          backgroundColor: Colors.green,
+        ),
+        child: _isLoading
+            ? const SizedBox(
+                height: 20,
+                width: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: Colors.white,
+                ),
+              )
+            : const Text(
+                'Aceptar Servicio',
+                style: TextStyle(fontSize: 16, color: Colors.white),
+              ),
+      ),
+    );
   }
 
   Widget _buildAssignServiceButton() {
@@ -824,10 +836,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               )
             : const Text(
                 'Asignar a Técnico',
-                style: TextStyle(
-                  fontSize: 16,
-                  color: Colors.white,
-                ),
+                style: TextStyle(fontSize: 16, color: Colors.white),
               ),
       ),
     );
@@ -867,8 +876,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             if (technicians.isEmpty) {
               return AlertDialog(
                 title: const Text('Sin Técnicos'),
-                content:
-                    const Text('No hay técnicos disponibles en este momento.'),
+                content: const Text(
+                  'No hay técnicos disponibles en este momento.',
+                ),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -889,19 +899,18 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     final technician = technicians[index];
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor:
-                            technician.isBlocked ? Colors.red : Colors.green,
-                        child: Icon(
-                          Icons.person,
-                          color: Colors.white,
-                        ),
+                        backgroundColor: technician.isBlocked
+                            ? Colors.red
+                            : Colors.green,
+                        child: Icon(Icons.person, color: Colors.white),
                       ),
                       title: Text(technician.name),
                       subtitle: Text(
                         technician.isBlocked ? 'Bloqueado' : 'Disponible',
                         style: TextStyle(
-                          color:
-                              technician.isBlocked ? Colors.red : Colors.green,
+                          color: technician.isBlocked
+                              ? Colors.red
+                              : Colors.green,
                         ),
                       ),
                       enabled: !technician.isBlocked,
@@ -933,7 +942,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       _isLoading = true;
     });
 
-    bool success = await _serviceService.acceptService(
+    bool success = await _serviceService.assignTechnician(
       widget.service.id,
       technicianId,
     );

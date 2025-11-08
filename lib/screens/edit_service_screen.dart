@@ -185,19 +185,6 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         title: const Text('Editar Servicio'),
         backgroundColor: Colors.blue,
         foregroundColor: Colors.white,
-        actions: [
-          if (!_isLoading)
-            TextButton(
-              onPressed: _updateService,
-              child: const Text(
-                'Guardar',
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-        ],
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())

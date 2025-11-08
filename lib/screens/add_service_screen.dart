@@ -373,6 +373,7 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
         clientPhone: _clientPhoneController.text,
         scheduledFor: DateTime.now().add(const Duration(hours: 1)), // Programar para 1 hora después
         basePrice: double.tryParse(_basePriceController.text) ?? _selectedSedeBasePrice ?? 30000,
+        sedeId: _selectedSedeId,
       );
 
       if (!mounted) return;
