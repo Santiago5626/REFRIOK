@@ -23,20 +23,23 @@ app.post('/sendPush', async (req, res) => {
     lastRequest = req.body;
     console.log('🔔 POST /sendPush recibido →', req.body);
     const { technicianId, title, body, data, apiKey } = req.body;
-    // Opcional: proteger con una clave sencilla
     if (process.env.API_KEY && apiKey !== process.env.API_KEY) {
         return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
     if (!technicianId) {
         return res.status(400).json({ success: false, error: 'technicianId requerido' });
     }
-    const topic = `technician_${technicianId}`;
-    const payload = {
-        notification: { title: title || 'Nuevo Servicio', body: body || '' },
-        data: data || {},
+    const message = {
+        topic: topic,
+        notification: {
+            title: title || 'Nuevo Servicio',
+            body: body || ''
+        },
+        data: data || {}
     };
+
     try {
-        const result = await admin.messaging().sendToTopic(topic, payload);
+        const result = await admin.messaging().send(message);
         res.json({ success: true, result });
     } catch (e) {
         console.error('Error enviando push', e);
@@ -46,7 +49,7 @@ app.post('/sendPush', async (req, res) => {
 
 // Ruta raíz – confirma que el servidor está activo
 app.get('/', (req, res) => {
-    res.send('✅ Backend activo');
+    res.send('Backend activo');
 });
 
 // Ruta de salud – útil para pruebas rápidas
