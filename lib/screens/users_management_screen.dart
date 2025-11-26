@@ -130,7 +130,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: user.isAdmin ? Colors.blue.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                              color: user.isAdmin ? Colors.blue.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(
@@ -146,7 +146,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                           Container(
                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                             decoration: BoxDecoration(
-                              color: user.isBlocked ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
+                              color: user.isBlocked ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Text(

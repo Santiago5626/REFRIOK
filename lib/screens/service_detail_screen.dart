@@ -7,6 +7,7 @@ import '../services/service_management_service.dart';
 import '../services/auth_service.dart';
 import '../services/invoice_service.dart';
 import '../utils/dialog_utils.dart';
+import '../theme/app_theme.dart';
 import 'edit_service_screen.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
@@ -28,12 +29,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   app_user.User? _currentUser;
-  late Service _currentService; // Make it mutable
+  late Service _currentService;
 
   @override
   void initState() {
     super.initState();
-    _currentService = widget.service; // Initialize with widget.service
+    _currentService = widget.service;
     _loadCurrentUser();
   }
 
@@ -44,89 +45,629 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     });
   }
 
-  Future<void> _acceptService() async {
-    setState(() {
-      _isLoading = true;
-    });
+  @override
+  Widget build(BuildContext context) {
+    if (_currentUser == null) {
+      return const Scaffold(body: Center(child: CircularProgressIndicator()));
+    }
 
+    if (!widget.isAvailable &&
+        !_currentUser!.isAdmin &&
+        widget.service.assignedTechnicianId != _currentUser!.id) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Acceso Denegado')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock_outline, size: 64, color: Colors.grey[400]),
+              const SizedBox(height: 16),
+              Text(
+                'No tienes acceso a este servicio',
+                style: TextStyle(fontSize: 18, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA), // Fondo moderno
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        title: const Text(
+          'Detalles del Servicio',
+          style: TextStyle(
+            color: Color(0xFF172B4D),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        iconTheme: const IconThemeData(color: Color(0xFF172B4D)),
+        actions: [
+          if (_currentService.status == ServiceStatus.completed ||
+              _currentService.status == ServiceStatus.paid)
+            IconButton(
+              icon: const Icon(Icons.download_rounded),
+              tooltip: 'Descargar Factura',
+              onPressed: _downloadInvoice,
+              style: IconButton.styleFrom(
+                backgroundColor: const Color(0xFFF4F5F7),
+                foregroundColor: const Color(0xFF172B4D),
+              ),
+            ),
+          const SizedBox(width: 8),
+          if (_currentUser?.isAdmin == true &&
+              _currentService.status != ServiceStatus.completed &&
+              _currentService.status != ServiceStatus.paid)
+            IconButton(
+              icon: const Icon(Icons.edit_rounded),
+              onPressed: () async {
+                final updated = await Navigator.push<bool>(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>
+                        EditServiceScreen(service: _currentService),
+                  ),
+                );
+
+                if (updated == true) {
+                  final updatedService = await _serviceService.getServiceById(_currentService.id);
+                  if (updatedService != null) {
+                    setState(() {
+                      _currentService = updatedService;
+                    });
+                  }
+                }
+              },
+              style: IconButton.styleFrom(
+                backgroundColor: const Color(0xFFF4F5F7),
+                foregroundColor: const Color(0xFF172B4D),
+              ),
+            ),
+          const SizedBox(width: 16),
+        ],
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Alerta de Comisión Pendiente
+            if (_currentService.status == ServiceStatus.completed && !_currentService.isPaid)
+              Container(
+                margin: const EdgeInsets.only(bottom: 20),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFFAE6), // Fondo amarillo suave
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: const Color(0xFFFFAB00)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFFAB00).withValues(alpha: 0.1),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Row(
+                  children: [
+                    Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: const BoxDecoration(
+                        color: Color(0xFFFFAB00),
+                        shape: BoxShape.circle,
+                      ),
+                      child: const Icon(Icons.priority_high_rounded, color: Colors.white, size: 20),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Text(
+                            'Comisión Pendiente',
+                            style: TextStyle(
+                              color: Color(0xFF172B4D),
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            'Debes pagar la comisión al administrador.',
+                            style: TextStyle(
+                              color: const Color(0xFF172B4D).withValues(alpha: 0.7),
+                              fontSize: 14,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+            _buildStatusHeader(),
+            const SizedBox(height: 20),
+            _buildInfoCard(),
+            const SizedBox(height: 20),
+            if (_currentUser!.isAdmin ||
+                widget.isAvailable ||
+                _currentService.assignedTechnicianId == _currentUser!.id) ...[
+              _buildClientCard(),
+              const SizedBox(height: 20),
+              _buildLocationCard(),
+              const SizedBox(height: 20),
+              if (!widget.isAvailable) _buildPriceCard(),
+              const SizedBox(height: 30),
+            ],
+            _buildActionButtons(),
+            const SizedBox(height: 40), // Espacio extra al final
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatusHeader() {
+    final statusColor = _getStatusColor(_currentService.status);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: statusColor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          Icon(_getStatusIcon(_currentService.status), color: statusColor, size: 32),
+          const SizedBox(width: 16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Estado Actual',
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                Text(
+                  _getStatusText(_currentService.status),
+                  style: TextStyle(
+                    color: statusColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.info_outline, color: AppTheme.primaryBlue),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Información',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildDetailItem('Título', _currentService.title),
+          const SizedBox(height: 12),
+          _buildDetailItem('Descripción', _currentService.description),
+          const SizedBox(height: 12),
+          _buildDetailItem('Programado', _formatDateTime(_currentService.scheduledFor)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildClientCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.purple.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.person_outline, color: Colors.purple),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Cliente',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _currentService.clientName,
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      _currentService.clientPhone,
+                      style: TextStyle(color: Colors.grey[600]),
+                    ),
+                  ],
+                ),
+              ),
+              IconButton(
+                onPressed: _callClient,
+                icon: const Icon(Icons.phone),
+                style: IconButton.styleFrom(
+                  backgroundColor: AppTheme.successText.withValues(alpha: 0.1),
+                  foregroundColor: AppTheme.successText,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLocationCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.errorText.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.location_on_outlined, color: AppTheme.errorText),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Ubicación',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _currentService.location,
+                  style: const TextStyle(fontSize: 16),
+                ),
+              ),
+              const SizedBox(width: 12),
+              GestureDetector(
+                onTap: _openMaps,
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 8,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.location_on, color: Colors.white, size: 16),
+                      ),
+                      const SizedBox(width: 10),
+                      const Text(
+                        'Ir con Google Maps',
+                        style: TextStyle(
+                          color: Color(0xFF172B4D),
+                          fontWeight: FontWeight.w600,
+                          fontSize: 14,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPriceCard() {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: Colors.teal.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.attach_money, color: Colors.teal),
+              ),
+              const SizedBox(width: 12),
+              const Text(
+                'Detalles Financieros',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          if (_currentService.serviceType != null) ...[
+            _buildDetailItem('Tipo', _currentService.serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'),
+            const SizedBox(height: 12),
+            _buildDetailItem('Precio Final', '\$${_currentService.finalPrice.toStringAsFixed(0)}', isBold: true),
+            const SizedBox(height: 12),
+            if (_currentUser!.isAdmin)
+              _buildDetailItem('Comisión Admin (30%)', '\$${_currentService.adminCommission.toStringAsFixed(0)}', color: AppTheme.primaryBlue)
+            else
+              _buildDetailItem('Tu Ganancia (70%)', '\$${_currentService.technicianCommission.toStringAsFixed(0)}', color: AppTheme.successText),
+          ] else ...[
+            _buildDetailItem('Precio Base', '\$${_currentService.basePrice.toStringAsFixed(0)}'),
+            const SizedBox(height: 12),
+            if (_currentUser!.isAdmin)
+              Text(
+                'Ganancia estimada (30%): \$${(_currentService.basePrice * 0.3).toStringAsFixed(0)}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              )
+            else
+              Text(
+                'Ganancia estimada (70%): \$${(_currentService.basePrice * 0.7).toStringAsFixed(0)}',
+                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+              ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailItem(String label, String value, {bool isBold = false, Color? color}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          label,
+          style: TextStyle(
+            color: Colors.grey[600],
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+        const SizedBox(height: 4),
+        Text(
+          value,
+          style: TextStyle(
+            fontSize: 16,
+            fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+            color: color ?? AppTheme.textPrimary,
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildActionButtons() {
+    if (_currentUser == null) return const SizedBox.shrink();
+
+    if (widget.isAvailable) {
+      if (_currentUser!.isAdmin) {
+        return _buildButton(
+          'Asignar a Técnico',
+          Icons.person_add_outlined,
+          AppTheme.primaryBlue,
+          _showAssignTechnicianDialog,
+        );
+      } else {
+        return _buildButton(
+          'Aceptar Servicio',
+          Icons.check_circle_outline,
+          AppTheme.successText,
+          _acceptService,
+        );
+      }
+    }
+
+    if (!_currentUser!.isAdmin) {
+      switch (_currentService.status) {
+        case ServiceStatus.assigned:
+          return _buildButton(
+            'Marcar En Camino',
+            Icons.directions_car_outlined,
+            AppTheme.primaryBlue,
+            _markOnWay,
+          );
+        case ServiceStatus.onWay:
+          return _buildButton(
+            'Marcar Llegada',
+            Icons.location_on_outlined,
+            Colors.orange,
+            _markArrived,
+          );
+        case ServiceStatus.inProgress:
+          return _buildButton(
+            'Completar Servicio',
+            Icons.task_alt,
+            AppTheme.successText,
+            () {
+              if (_currentService.serviceType == ServiceType.revision) {
+                _showCompleteServiceDialogForRevision();
+              } else {
+                _showCompleteServiceDialogForComplete();
+              }
+            },
+          );
+        default:
+          return const SizedBox.shrink();
+      }
+    }
+
+    return const SizedBox.shrink();
+  }
+
+  Widget _buildButton(String text, IconData icon, Color color, VoidCallback onPressed) {
+    return SizedBox(
+      width: double.infinity,
+      child: ElevatedButton.icon(
+        onPressed: _isLoading ? null : onPressed,
+        icon: _isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : Icon(icon),
+        label: Text(_isLoading ? 'Procesando...' : text),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: Colors.white,
+          padding: const EdgeInsets.symmetric(vertical: 16),
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(12),
+          ),
+        ),
+      ),
+    );
+  }
+
+  // ... (Keep existing helper methods: _acceptService, _markOnWay, _markArrived, etc.)
+  // I will copy the logic methods here to ensure they are preserved.
+
+  Future<void> _acceptService() async {
+    setState(() => _isLoading = true);
     final currentUser = await _authService.getCurrentUserData();
     if (currentUser == null) {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       return;
     }
 
-    bool success = await _serviceService.acceptService(
-      widget.service.id,
-      currentUser.id,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
+    bool success = await _serviceService.acceptService(widget.service.id, currentUser.id);
+    setState(() => _isLoading = false);
 
     if (success) {
       if (!mounted) return;
-      await showAnimatedDialog(
-          context, DialogType.success, 'Servicio aceptado exitosamente');
+      await showAnimatedDialog(context, DialogType.success, 'Servicio aceptado exitosamente');
       Navigator.pop(context);
     } else {
       if (!mounted) return;
-      showAnimatedDialog(
-          context, DialogType.error, 'Error al aceptar el servicio');
+      showAnimatedDialog(context, DialogType.error, 'Error al aceptar el servicio');
     }
   }
 
   Future<void> _markOnWay() async {
-    setState(() {
-      _isLoading = true;
-    });
-
+    setState(() => _isLoading = true);
     bool success = await _serviceService.markOnWay(_currentService.id);
 
     if (success) {
-      // Refrescar el servicio
-      try {
-        final updatedService = await _serviceService.getServiceById(_currentService.id);
-        if (updatedService != null) {
-          setState(() {
-            _currentService = updatedService;
-            _isLoading = false;
-          });
-          if (!mounted) return;
-          await showAnimatedDialog(
-              context, DialogType.success, 'Marcado como en camino');
-          if (!mounted) return;
-          Navigator.pop(context, true);
-        } else {
-          setState(() {
-            _isLoading = false;
-          });
-          if (!mounted) return;
-          showAnimatedDialog(
-              context, DialogType.error, 'Error al refrescar el servicio');
-        }
-      } catch (e) {
-        setState(() {
-          _isLoading = false;
-        });
-        if (!mounted) return;
-        showAnimatedDialog(
-            context, DialogType.error, 'Error al actualizar estado: $e');
-      }
+      _refreshService();
     } else {
-      setState(() {
-        _isLoading = false;
-      });
+      setState(() => _isLoading = false);
       if (!mounted) return;
-      showAnimatedDialog(
-          context, DialogType.error, 'Error al actualizar estado');
+      showAnimatedDialog(context, DialogType.error, 'Error al actualizar estado');
     }
   }
 
   Future<void> _markArrived() async {
-    // Mostrar diálogo para elegir tipo de servicio
     _showServiceTypeDialog();
   }
 
@@ -137,15 +678,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         return AlertDialog(
           title: const Text('Tipo de Servicio'),
           content: const Text('¿Qué tipo de servicio vas a realizar?'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
                 _markArrivedWithType(ServiceType.revision);
               },
-              child: Text(
-                'Solo Revisión (\$${widget.service.basePrice.toStringAsFixed(0)})',
-              ),
+              child: Text('Solo Revisión (\$${widget.service.basePrice.toStringAsFixed(0)})'),
             ),
             TextButton(
               onPressed: () {
@@ -154,12 +694,6 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               },
               child: const Text('Servicio Completo'),
             ),
-            TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
-              child: const Text('Cancelar'),
-            ),
           ],
         );
       },
@@ -167,52 +701,33 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   }
 
   Future<void> _markArrivedWithType(ServiceType serviceType) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    bool success = await _serviceService.markArrivedWithServiceType(
-      widget.service.id,
-      serviceType,
-    );
+    setState(() => _isLoading = true);
+    bool success = await _serviceService.markArrivedWithServiceType(widget.service.id, serviceType);
 
     if (success) {
-      // Refrescar el servicio desde Firestore para obtener todos los datos actualizados
-      try {
-        final updatedService = await _serviceService.getServiceById(widget.service.id);
-        if (updatedService != null) {
-          setState(() {
-            _currentService = updatedService;
-            _isLoading = false;
-          });
-          if (!mounted) return;
-          await showAnimatedDialog(context, DialogType.success,
-              'Marcado como llegado - ${serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}');
-          if (!mounted) return;
-          Navigator.pop(context, true);
-        } else {
-          setState(() {
-            _isLoading = false;
-          });
-          if (!mounted) return;
-          showAnimatedDialog(
-              context, DialogType.error, 'Error al refrescar el servicio');
-        }
-      } catch (e) {
+      _refreshService(message: 'Marcado como llegado - ${serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}');
+    } else {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      showAnimatedDialog(context, DialogType.error, 'Error al actualizar estado');
+    }
+  }
+
+  Future<void> _refreshService({String? message}) async {
+    try {
+      final updatedService = await _serviceService.getServiceById(_currentService.id);
+      if (updatedService != null) {
         setState(() {
+          _currentService = updatedService;
           _isLoading = false;
         });
-        if (!mounted) return;
-        showAnimatedDialog(
-            context, DialogType.error, 'Error al actualizar estado: $e');
+        if (message != null && mounted) {
+          await showAnimatedDialog(context, DialogType.success, message);
+        }
+        if (mounted) Navigator.pop(context, true);
       }
-    } else {
-      setState(() {
-        _isLoading = false;
-      });
-      if (!mounted) return;
-      showAnimatedDialog(
-          context, DialogType.error, 'Error al actualizar estado');
+    } catch (e) {
+      setState(() => _isLoading = false);
     }
   }
 
@@ -223,6 +738,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text('Completar Servicio'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -231,40 +747,38 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               TextField(
                 controller: priceController,
                 keyboardType: TextInputType.number,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   prefixText: '\$',
                   hintText: 'Valor del servicio',
-                  border: OutlineInputBorder(),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                 ),
               ),
             ],
           ),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 if (priceController.text.isNotEmpty) {
                   try {
                     double finalPrice = double.parse(priceController.text);
-                    _completeService(
-                      ServiceType.complete,
-                      finalPrice: finalPrice,
-                    );
+                    _completeService(ServiceType.complete, finalPrice: finalPrice);
                   } catch (e) {
-                    showAnimatedDialog(context, DialogType.error,
-                        'Ingrese un valor numérico válido');
+                    showAnimatedDialog(context, DialogType.error, 'Ingrese un valor numérico válido');
                   }
                 } else {
-                  showAnimatedDialog(context, DialogType.error,
-                      'Debe ingresar el valor del servicio');
+                  showAnimatedDialog(context, DialogType.error, 'Debe ingresar el valor del servicio');
                 }
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successText,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
               child: const Text('Completar'),
             ),
           ],
@@ -280,18 +794,22 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         return AlertDialog(
           title: const Text('Completar Servicio'),
           content: const Text('¿Estás seguro de completar este servicio?'),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           actions: [
             TextButton(
-              onPressed: () {
-                Navigator.pop(context);
-              },
+              onPressed: () => Navigator.pop(context),
               child: const Text('Cancelar'),
             ),
-            TextButton(
+            ElevatedButton(
               onPressed: () {
                 Navigator.pop(context);
                 _completeService(ServiceType.revision);
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.successText,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+              ),
               child: const Text('Completar'),
             ),
           ],
@@ -300,527 +818,79 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     );
   }
 
+  Future<void> _completeService(ServiceType serviceType, {double? finalPrice}) async {
+    setState(() => _isLoading = true);
+    bool success = false;
+
+    try {
+      if (serviceType == ServiceType.complete && finalPrice != null) {
+        success = await _serviceService.completeServiceWithPrice(_currentService.id, finalPrice);
+      } else {
+        success = await _serviceService.completeService(_currentService.id, serviceType);
+      }
+
+      if (success) {
+        _refreshService(message: 'Servicio completado');
+      } else {
+        setState(() => _isLoading = false);
+        if (!mounted) return;
+        showAnimatedDialog(context, DialogType.error, 'Error al completar el servicio');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      showAnimatedDialog(context, DialogType.error, 'Error: $e');
+    }
+  }
+
   Future<void> _callClient() async {
     final Uri phoneUri = Uri.parse('tel:${widget.service.clientPhone}');
     try {
       if (await canLaunchUrl(phoneUri)) {
         await launchUrl(phoneUri);
-      } else {
-        throw 'Could not launch $phoneUri';
       }
     } catch (e) {
       if (!mounted) return;
-      showAnimatedDialog(
-          context, DialogType.error, 'No se puede realizar la llamada: $e');
+      showAnimatedDialog(context, DialogType.error, 'No se puede realizar la llamada');
     }
   }
 
   Future<void> _openMaps() async {
     final String query = Uri.encodeComponent(widget.service.location);
-    final Uri mapsUri = Uri.parse(
-      'https://www.google.com/maps/search/?api=1&query=$query',
-    );
+    final Uri mapsUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
 
     if (await canLaunchUrl(mapsUri)) {
       await launchUrl(mapsUri);
     } else {
       if (!mounted) return;
-      showAnimatedDialog(
-          context, DialogType.error, 'No se puede abrir el mapa');
+      showAnimatedDialog(context, DialogType.error, 'No se puede abrir el mapa');
     }
   }
 
   Future<void> _downloadInvoice() async {
     try {
-      // Mostrar indicador de carga
       showDialog(
         context: context,
         barrierDismissible: false,
-        builder: (BuildContext context) {
-          return const AlertDialog(
-            content: Row(
-              children: [
-                CircularProgressIndicator(),
-                SizedBox(width: 20),
-                Text('Generando factura...'),
-              ],
-            ),
-          );
-        },
+        builder: (BuildContext context) => const Center(child: CircularProgressIndicator()),
       );
 
-      // Generar la factura
       final invoiceService = InvoiceService();
       final file = await invoiceService.generateInvoice(widget.service);
 
-      // Cerrar el diálogo de carga
       if (mounted) Navigator.pop(context);
 
-      // Abrir el archivo PDF
       final result = await OpenFile.open(file.path);
 
       if (result.type != ResultType.done) {
         if (!mounted) return;
-        showAnimatedDialog(context, DialogType.error,
-            'Error al abrir la factura: ${result.message}');
-      } else {
-        if (!mounted) return;
-        showAnimatedDialog(
-            context, DialogType.success, 'Factura generada exitosamente');
+        showAnimatedDialog(context, DialogType.error, 'Error al abrir la factura');
       }
     } catch (e) {
-      // Cerrar el diálogo de carga si está abierto
       if (mounted) Navigator.pop(context);
-
       if (!mounted) return;
-      showAnimatedDialog(
-          context, DialogType.error, 'Error al generar la factura: $e');
+      showAnimatedDialog(context, DialogType.error, 'Error al generar la factura');
     }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    if (_currentUser == null) {
-      return const Scaffold(body: Center(child: CircularProgressIndicator()));
-    }
-
-    // Si es un servicio asignado y el usuario no es el técnico asignado ni admin
-    if (!widget.isAvailable &&
-        !_currentUser!.isAdmin &&
-        widget.service.assignedTechnicianId != _currentUser!.id) {
-      return Scaffold(
-        appBar: AppBar(title: const Text('Acceso Denegado')),
-        body: const Center(
-          child: Text(
-            'No tienes acceso a los detalles de este servicio',
-            style: TextStyle(fontSize: 16),
-          ),
-        ),
-      );
-    }
-
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.service.title),
-        actions: [
-          if (widget.service.status == ServiceStatus.completed ||
-              widget.service.status == ServiceStatus.paid)
-            IconButton(
-              icon: const Icon(Icons.download),
-              tooltip: 'Descargar Factura',
-              onPressed: _downloadInvoice,
-            ),
-          if (_currentUser?.isAdmin == true &&
-              widget.service.status != ServiceStatus.completed)
-            IconButton(
-              icon: const Icon(Icons.edit),
-              onPressed: () async {
-                final updated = await Navigator.push<bool>(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        EditServiceScreen(service: widget.service),
-                  ),
-                );
-
-                if (updated == true) {
-                  Navigator.pop(context);
-                }
-              },
-            ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            _buildInfoCard(),
-            const SizedBox(height: 16),
-            // Solo mostrar detalles del cliente y ubicación si es el técnico asignado o admin
-            if (_currentUser!.isAdmin ||
-                widget.isAvailable ||
-                widget.service.assignedTechnicianId == _currentUser!.id) ...[
-              _buildClientCard(),
-              const SizedBox(height: 16),
-              _buildLocationCard(),
-              const SizedBox(height: 16),
-              if (!widget.isAvailable) _buildPriceCard(),
-              const SizedBox(height: 24),
-            ],
-            _buildActionButtons(),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildInfoCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Información del Servicio',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Descripción:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(widget.service.description),
-            const SizedBox(height: 12),
-            Text(
-              'Programado para:',
-              style: TextStyle(
-                fontWeight: FontWeight.bold,
-                color: Colors.grey[700],
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(_formatDateTime(widget.service.scheduledFor)),
-            if (!widget.isAvailable) ...[
-              const SizedBox(height: 12),
-              Text(
-                'Estado:',
-                style: TextStyle(
-                  fontWeight: FontWeight.bold,
-                  color: Colors.grey[700],
-                ),
-              ),
-              const SizedBox(height: 4),
-              Chip(
-                label: Text(
-                  _getStatusText(_currentService.status),
-                  style: const TextStyle(color: Colors.white),
-                ),
-                backgroundColor: _getStatusColor(_currentService.status),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildClientCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Información del Cliente',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.person, color: Colors.blue),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.service.clientName,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                const Icon(Icons.phone, color: Colors.green),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.service.clientPhone,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _callClient,
-                  icon: const Icon(Icons.call),
-                  color: Colors.green,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLocationCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Ubicación',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                const Icon(Icons.location_on, color: Colors.red),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: Text(
-                    widget.service.location,
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ),
-                IconButton(
-                  onPressed: _openMaps,
-                  icon: const Icon(Icons.map),
-                  color: Colors.blue,
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPriceCard() {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text(
-              'Información de Pago',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 12),
-            if (_currentService.serviceType != null) ...[
-              Text(
-                'Tipo de servicio: ${_currentService.serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}',
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                'Precio final: \$${_currentService.finalPrice.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              // Mostrar ganancia según el rol del usuario
-              if (_currentUser!.isAdmin)
-                Text(
-                  'Tu ganancia (30%): \$${_currentService.adminCommission.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.blue,
-                  ),
-                )
-              else
-                Text(
-                  'Tu ganancia (70%): \$${_currentService.technicianCommission.toStringAsFixed(0)}',
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.green,
-                  ),
-                ),
-            ] else ...[
-              Text(
-                'Precio base: \$${_currentService.basePrice.toStringAsFixed(0)}',
-                style: const TextStyle(fontSize: 16),
-              ),
-              const SizedBox(height: 8),
-              // Mostrar ganancia según el rol del usuario
-              if (_currentUser!.isAdmin)
-                Text(
-                  'Revisión: \$${_currentService.basePrice.toStringAsFixed(0)} (Tu ganancia: ${(_currentService.basePrice * 0.3).toStringAsFixed(0)})',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                )
-              else
-                Text(
-                  'Revisión: \$${_currentService.basePrice.toStringAsFixed(0)} (Tu ganancia: ${(_currentService.basePrice * 0.7).toStringAsFixed(0)})',
-                  style: const TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildActionButtons() {
-    if (_currentUser == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
-    // Si es un servicio disponible (pendiente)
-    if (widget.isAvailable) {
-      if (_currentUser!.isAdmin) {
-        // Los administradores pueden asignar servicios a técnicos
-        return _buildAssignServiceButton();
-      } else {
-        // Los técnicos pueden aceptar servicios disponibles
-        return _buildAcceptServiceButton();
-      }
-    }
-
-    // Si no es admin, mostrar botones según el estado del servicio
-    if (!_currentUser!.isAdmin) {
-      switch (_currentService.status) {
-        case ServiceStatus.assigned:
-          return SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _markOnWay,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.blue,
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Marcar como En Camino',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-            ),
-          );
-
-        case ServiceStatus.onWay:
-          return SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _markArrived,
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.orange,
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Marcar Llegada',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-            ),
-          );
-
-        case ServiceStatus.inProgress:
-          return SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : () {
-                if (_currentService.serviceType == ServiceType.revision) {
-                  _showCompleteServiceDialogForRevision();
-                } else {
-                  _showCompleteServiceDialogForComplete();
-                }
-              },
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                backgroundColor: Colors.green,
-              ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
-                    )
-                  : const Text(
-                      'Completar Servicio',
-                      style: TextStyle(fontSize: 16, color: Colors.white),
-                    ),
-            ),
-          );
-
-        default:
-          return const SizedBox.shrink();
-      }
-    }
-
-    // Los administradores solo ven información, no botones de acción para servicios asignados
-    return const SizedBox.shrink();
-  }
-
-  Widget _buildAcceptServiceButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _acceptService,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          backgroundColor: Colors.green,
-        ),
-        child: _isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Text(
-                'Aceptar Servicio',
-                style: TextStyle(fontSize: 16, color: Colors.white),
-              ),
-      ),
-    );
-  }
-
-  Widget _buildAssignServiceButton() {
-    return SizedBox(
-      width: double.infinity,
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _showAssignTechnicianDialog,
-        style: ElevatedButton.styleFrom(
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          backgroundColor: Colors.blue,
-        ),
-        child: _isLoading
-            ? const SizedBox(
-                height: 20,
-                width: 20,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: Colors.white,
-                ),
-              )
-            : const Text(
-                'Asignar a Técnico',
-                style: TextStyle(fontSize: 16, color: Colors.white),
-              ),
-      ),
-    );
   }
 
   void _showAssignTechnicianDialog() {
@@ -839,27 +909,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               );
             }
 
-            if (snapshot.hasError) {
-              return AlertDialog(
-                title: const Text('Error'),
-                content: Text('Error al cargar técnicos: ${snapshot.error}'),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cerrar'),
-                  ),
-                ],
-              );
-            }
-
             final technicians = snapshot.data ?? [];
 
             if (technicians.isEmpty) {
               return AlertDialog(
                 title: const Text('Sin Técnicos'),
-                content: const Text(
-                  'No hay técnicos disponibles en este momento.',
-                ),
+                content: const Text('No hay técnicos disponibles.'),
                 actions: [
                   TextButton(
                     onPressed: () => Navigator.pop(context),
@@ -880,16 +935,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     final technician = technicians[index];
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor:
-                            technician.isBlocked ? Colors.red : Colors.green,
-                        child: Icon(Icons.person, color: Colors.white),
+                        backgroundColor: technician.isBlocked ? AppTheme.errorText : AppTheme.successText,
+                        child: const Icon(Icons.person, color: Colors.white),
                       ),
                       title: Text(technician.name),
                       subtitle: Text(
                         technician.isBlocked ? 'Bloqueado' : 'Disponible',
                         style: TextStyle(
-                          color:
-                              technician.isBlocked ? Colors.red : Colors.green,
+                          color: technician.isBlocked ? AppTheme.errorText : AppTheme.successText,
                         ),
                       ),
                       enabled: !technician.isBlocked,
@@ -916,22 +969,59 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
     );
   }
 
+  Future<void> _assignServiceToTechnician(String technicianId) async {
+    setState(() => _isLoading = true);
+    try {
+      bool success = await _serviceService.assignService(_currentService.id, technicianId);
+      if (success) {
+        _refreshService(message: 'Servicio asignado correctamente');
+      } else {
+        setState(() => _isLoading = false);
+        if (!mounted) return;
+        showAnimatedDialog(context, DialogType.error, 'Error al asignar el servicio');
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (!mounted) return;
+      showAnimatedDialog(context, DialogType.error, 'Error: $e');
+    }
+  }
+
   Color _getStatusColor(ServiceStatus status) {
     switch (status) {
       case ServiceStatus.pending:
-        return Colors.orange;
+        return AppTheme.warningText;
       case ServiceStatus.assigned:
-        return Colors.blue;
+        return AppTheme.primaryBlue;
       case ServiceStatus.onWay:
         return Colors.purple;
       case ServiceStatus.inProgress:
-        return Colors.amber;
+        return Colors.amber[800]!;
       case ServiceStatus.completed:
-        return Colors.green;
+        return AppTheme.successText;
       case ServiceStatus.cancelled:
-        return Colors.red;
+        return AppTheme.errorText;
       case ServiceStatus.paid:
-        return Colors.green[700] ?? Colors.green;
+        return Colors.teal;
+    }
+  }
+
+  IconData _getStatusIcon(ServiceStatus status) {
+    switch (status) {
+      case ServiceStatus.pending:
+        return Icons.pending_outlined;
+      case ServiceStatus.assigned:
+        return Icons.assignment_ind_outlined;
+      case ServiceStatus.onWay:
+        return Icons.directions_car_outlined;
+      case ServiceStatus.inProgress:
+        return Icons.build_outlined;
+      case ServiceStatus.completed:
+        return Icons.check_circle_outline;
+      case ServiceStatus.cancelled:
+        return Icons.cancel_outlined;
+      case ServiceStatus.paid:
+        return Icons.paid_outlined;
     }
   }
 
@@ -956,115 +1046,5 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
-
-  Future<void> _completeService(ServiceType serviceType, {double? finalPrice}) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    bool success = false;
-
-    try {
-      if (serviceType == ServiceType.complete && finalPrice != null) {
-        success = await _serviceService.completeServiceWithPrice(
-          _currentService.id,
-          finalPrice,
-        );
-      } else {
-        success = await _serviceService.completeService(_currentService.id, serviceType);
-      }
-
-      if (success) {
-        final updatedService = await _serviceService.getServiceById(_currentService.id);
-        if (updatedService != null) {
-          setState(() {
-            _currentService = updatedService;
-          });
-          if (!mounted) return;
-          await showAnimatedDialog(context, DialogType.success, 'Servicio completado');
-          if (!mounted) return;
-          Navigator.pop(context, true);
-        }
-      } else {
-        if (!mounted) return;
-        showAnimatedDialog(context, DialogType.error, 'Error al completar el servicio');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      showAnimatedDialog(context, DialogType.error, 'Error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
-
-  void _showCompleteServiceDialog() {
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Confirmar completar servicio'),
-          content: const Text('¿Estás seguro de que deseas completar el servicio?'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('Cancelar'),
-            ),
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _completeService(ServiceType.revision);
-              },
-              child: const Text('Completar'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _assignServiceToTechnician(String technicianId) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    try {
-      bool success = await _serviceService.assignService(
-        _currentService.id,
-        technicianId,
-      );
-
-      if (success) {
-        final updatedService = await _serviceService.getServiceById(_currentService.id);
-        if (updatedService != null) {
-          setState(() {
-            _currentService = updatedService;
-          });
-          if (!mounted) return;
-          await showAnimatedDialog(context, DialogType.success, 'Servicio asignado correctamente');
-          // Regresar a la pantalla anterior con el resultado actualizado
-          if (!mounted) return;
-          Navigator.pop(context, true); // Devolver true para indicar que hubo cambios
-        }
-      } else {
-        if (!mounted) return;
-        showAnimatedDialog(context, DialogType.error, 'Error al asignar el servicio');
-      }
-    } catch (e) {
-      if (!mounted) return;
-      showAnimatedDialog(context, DialogType.error, 'Error: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 }

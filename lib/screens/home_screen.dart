@@ -14,6 +14,8 @@ import 'reports_screen.dart';
 import 'users_management_screen.dart';
 import 'sede_management_screen.dart';
 import 'admin/payment_management_screen.dart';
+import '../theme/app_theme.dart';
+import '../widgets/service_card.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -28,6 +30,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final NotificationService _notificationService = NotificationService();
   app_user.User? _currentUser;
   int _selectedIndex = 0;
+
   @override
   void initState() {
     super.initState();
@@ -68,7 +71,7 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
+                foregroundColor: AppTheme.errorText,
               ),
               child: const Text('Cerrar Sesión'),
             ),
@@ -109,18 +112,16 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
+              Icon(
                 Icons.block,
                 size: 100,
-                color: Colors.red,
+                color: AppTheme.errorText,
               ),
               const SizedBox(height: 16),
-              const Text(
+              Text(
                 'Cuenta Bloqueada',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.red,
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                  color: AppTheme.errorText,
                 ),
               ),
               const SizedBox(height: 16),
@@ -136,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _signOut,
+                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.errorText),
                 child: const Text('Cerrar Sesión'),
               ),
             ],
@@ -146,7 +148,65 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Hola, ${_currentUser!.name}'),
+        elevation: 0,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        toolbarHeight: 85,
+        title: Row(
+          children: [
+            // Logo de la empresa
+            Container(
+              height: 60,
+              width: 60,
+              padding: const EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(16),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.1),
+                    blurRadius: 15,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.asset(
+                  'assets/images/logo.png',
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+            const SizedBox(width: 16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    _currentUser!.isAdmin ? 'Panel Admin' : 'Mis Servicios',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF172B4D),
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 3),
+                  Text(
+                    _currentUser!.name.split(' ')[0],
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.grey[600],
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
         actions: [
           // Botón de notificaciones con badge
           StreamBuilder<int>(
@@ -156,7 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
               return Stack(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.notifications),
+                    icon: const Icon(Icons.notifications_outlined, color: Color(0xFF172B4D)),
                     onPressed: () {
                       Navigator.push(
                         context,
@@ -171,17 +231,17 @@ class _HomeScreenState extends State<HomeScreen> {
                       right: 8,
                       top: 8,
                       child: Container(
-                        padding: const EdgeInsets.all(2),
-                        decoration: BoxDecoration(
-                          color: Colors.red,
-                          borderRadius: BorderRadius.circular(10),
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Color(0xFFFF5630),
+                          shape: BoxShape.circle,
                         ),
                         constraints: const BoxConstraints(
-                          minWidth: 16,
-                          minHeight: 16,
+                          minWidth: 18,
+                          minHeight: 18,
                         ),
                         child: Text(
-                          unreadCount > 99 ? '99+' : unreadCount.toString(),
+                          unreadCount > 9 ? '9+' : unreadCount.toString(),
                           style: const TextStyle(
                             color: Colors.white,
                             fontSize: 10,
@@ -195,12 +255,7 @@ class _HomeScreenState extends State<HomeScreen> {
               );
             },
           ),
-          // Solo mostrar botón de logout para administradores
-          if (_currentUser!.isAdmin)
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: _signOut,
-            ),
+          const SizedBox(width: 8),
         ],
       ),
       body: IndexedStack(
@@ -240,11 +295,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     );
                   },
                   icon: const Icon(Icons.add),
-                  label: const Text('Agregar Servicio'),
+                  label: const Text('Nuevo Servicio'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1E88E5),
+                    backgroundColor: AppTheme.primaryBlue,
                     foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
                 ),
               ),
@@ -259,12 +314,14 @@ class _HomeScreenState extends State<HomeScreen> {
                       ),
                     );
                   },
-                  icon: const Icon(Icons.analytics),
+                  icon: const Icon(Icons.analytics_outlined),
                   label: const Text('Reportes'),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    backgroundColor: Colors.white,
+                    foregroundColor: AppTheme.primaryBlue,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    elevation: 0,
+                    side: const BorderSide(color: AppTheme.primaryBlue),
                   ),
                 ),
               ),
@@ -286,18 +343,10 @@ class _HomeScreenState extends State<HomeScreen> {
               List<Service> services = snapshot.data ?? [];
 
               if (services.isEmpty) {
-                return const Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Icon(Icons.work_off, size: 64, color: Colors.grey),
-                      SizedBox(height: 16),
-                      Text(
-                        'No hay servicios registrados',
-                        style: TextStyle(fontSize: 18, color: Colors.grey),
-                      ),
-                    ],
-                  ),
+                return _buildEmptyState(
+                  'No hay servicios registrados',
+                  'Crea un nuevo servicio para comenzar',
+                  Icons.post_add_rounded,
                 );
               }
 
@@ -308,9 +357,12 @@ class _HomeScreenState extends State<HomeScreen> {
                   itemCount: services.length,
                   itemBuilder: (context, index) {
                     Service service = services[index];
-                    return _buildServiceCard(
-                      service,
-                      service.status == ServiceStatus.pending,
+                    return ServiceCard(
+                      service: service,
+                      isAvailable: service.status == ServiceStatus.pending,
+                      currentUser: _currentUser!,
+                      onAssign: _showAssignDialog,
+                      onDelete: _showDeleteConfirmation,
                     );
                   },
                 ),
@@ -326,204 +378,153 @@ class _HomeScreenState extends State<HomeScreen> {
     return const PaymentManagementScreen();
   }
 
-  Widget _buildServicesTab() {
-    // Los técnicos solo ven servicios disponibles
-    return StreamBuilder<List<Service>>(
-      stream: _serviceService.getAvailableServices(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+  Widget _buildMyServicesTab() {
+    return Container(
+      color: const Color(0xFFF8F9FA),
+      child: StreamBuilder<List<Service>>(
+        stream: _serviceService.getTechnicianServices(_currentUser!.id),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error: ${snapshot.error}'),
+            );
+          }
 
-        List<Service> services = snapshot.data ?? [];
+          List<Service> services = snapshot.data ?? [];
 
-        if (services.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.work_off,
-                  size: 64,
-                  color: Colors.grey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'No hay servicios disponibles',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
+          if (services.isEmpty) {
+            return _buildEmptyState(
+              'No tienes servicios asignados',
+              'Los nuevos servicios aparecerán aquí',
+              Icons.assignment_outlined,
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async => setState(() {}),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: services.length,
+              itemBuilder: (context, index) {
+                Service service = services[index];
+                return ServiceCard(
+                  service: service,
+                  isAvailable: false,
+                  currentUser: _currentUser!,
+                  onAssign: (_) {},
+                  onDelete: (_) {},
+                  showStatusInBottom: false, // No mostrar estado duplicado
+                );
+              },
             ),
           );
-        }
-
-        return RefreshIndicator(
-          onRefresh: () async {
-            setState(() {});
-          },
-          child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: services.length,
-            itemBuilder: (context, index) {
-              Service service = services[index];
-              return _buildServiceCard(service, true);
-            },
-          ),
-        );
-      },
+        },
+      ),
     );
   }
 
-  Widget _buildServiceCard(Service service, bool isAvailable) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: ListTile(
-        leading: CircleAvatar(
-          backgroundColor: _getStatusColor(service.status),
-          child: Icon(
-            _getStatusIcon(service.status),
-            color: Colors.white,
-          ),
-        ),
-        title: Text(
-          service.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(service.location),
-            const SizedBox(height: 4),
-            Text(
-              'Programado: ${_formatDateTime(service.scheduledFor)}',
-              style: const TextStyle(fontSize: 12),
-            ),
-            if (!isAvailable) ...[
-              const SizedBox(height: 4),
-              Text(
-                'Estado: ${_getStatusText(service.status)}',
-                style: TextStyle(
-                  fontSize: 12,
-                  color: _getStatusColor(service.status),
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ],
-          ],
-        ),
-        trailing: _currentUser!.isAdmin
-            ? PopupMenuButton<String>(
-                onSelected: (value) {
-                  if (value == 'assign') {
-                    _showAssignDialog(service);
-                  } else if (value == 'delete') {
-                    _showDeleteConfirmation(service);
-                  } else if (value == 'view') {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ServiceDetailScreen(
-                          service: service,
-                          isAvailable: isAvailable,
-                        ),
-                      ),
-                    );
-                  }
-                },
-                itemBuilder: (BuildContext context) {
-                  final items = <PopupMenuEntry<String>>[
-                    const PopupMenuItem<String>(
-                      value: 'view',
-                      child: Row(
-                        children: [
-                          Icon(Icons.visibility, size: 20),
-                          SizedBox(width: 8),
-                          Text('Ver detalles'),
-                        ],
-                      ),
-                    ),
-                  ];
+  Widget _buildHistoryTab() {
+    return Container(
+      color: const Color(0xFFF8F9FA),
+      child: StreamBuilder<List<Service>>(
+        stream: _serviceService.getCompletedServices(_currentUser!.id),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
 
-                  // Allow (re)assignment if the service is not completed, cancelled, or paid
-                  if (service.status == ServiceStatus.pending ||
-                      service.status == ServiceStatus.assigned ||
-                      service.status == ServiceStatus.onWay ||
-                      service.status == ServiceStatus.inProgress) {
-                    items.add(
-                      PopupMenuItem<String>(
-                        value: 'assign',
-                        child: Row(
-                          children: [
-                            const Icon(Icons.assignment_ind, size: 20),
-                            const SizedBox(width: 8),
-                            Text(service.status == ServiceStatus.pending
-                                ? 'Asignar'
-                                : 'Reasignar'),
-                          ],
-                        ),
-                      ),
-                    );
-                  }
+          if (snapshot.hasError) {
+            return Center(
+              child: Text('Error: ${snapshot.error}'),
+            );
+          }
 
-                  items.add(
-                    const PopupMenuItem<String>(
-                      value: 'delete',
-                      child: Row(
-                        children: [
-                          Icon(Icons.delete, color: Colors.red, size: 20),
-                          SizedBox(width: 8),
-                          Text('Eliminar', style: TextStyle(color: Colors.red)),
-                        ],
-                      ),
-                    ),
-                  );
+          List<Service> services = snapshot.data ?? [];
 
-                  return items;
-                },
-              )
-            : isAvailable
-                ? const Icon(Icons.arrow_forward_ios)
-                : _buildStatusChip(service.status),
-        onTap: _currentUser!.isAdmin
-            ? null
-            : () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ServiceDetailScreen(
-                      service: service,
-                      isAvailable: isAvailable,
-                    ),
-                  ),
+          if (services.isEmpty) {
+            return _buildEmptyState(
+              'No hay servicios completados',
+              'Tu historial aparecerá aquí',
+              Icons.history_outlined,
+            );
+          }
+
+          return RefreshIndicator(
+            onRefresh: () async => setState(() {}),
+            child: ListView.builder(
+              padding: const EdgeInsets.all(20),
+              itemCount: services.length,
+              itemBuilder: (context, index) {
+                Service service = services[index];
+                return ServiceCard(
+                  service: service,
+                  isAvailable: false,
+                  currentUser: _currentUser!,
+                  onAssign: (_) {},
+                  onDelete: (_) {},
+                  showStatusInBottom: false, // Nueva prop para no mostrar estado duplicado
                 );
               },
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildEmptyState(String message, String subtitle, IconData icon) {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF0052CC).withValues(alpha: 0.05),
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              icon,
+              size: 64,
+              color: const Color(0xFF0052CC).withValues(alpha: 0.3),
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            message,
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF172B4D),
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: TextStyle(
+              fontSize: 14,
+              color: Colors.grey[600],
+            ),
+          ),
+        ],
       ),
     );
   }
 
   Future<void> _showAssignDialog(Service service) async {
     final BuildContext currentContext = context;
-    // 1. Fetch all users once using a Future-based method
     List<app_user.User> allUsers = await _authService.getUsers();
 
-    // 2. Filter technicians based on the service's sedeId
-    // If service.sedeId is null, this will show all technicians (graceful fallback)
     List<app_user.User> technicians = allUsers
         .where((user) =>
             !user.isAdmin &&
             (service.sedeId == null || user.sedeId == service.sedeId))
         .toList();
 
-    // 3. Show the dialog with the filtered list
     app_user.User? selectedTechnician = await showDialog<app_user.User>(
       context: context,
       builder: (BuildContext context) {
@@ -538,6 +539,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     itemCount: technicians.length,
                     itemBuilder: (context, index) {
                       return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                          child: Text(
+                            technicians[index].name[0].toUpperCase(),
+                            style: const TextStyle(color: AppTheme.primaryBlue),
+                          ),
+                        ),
                         title: Text(technicians[index].name),
                         onTap: () {
                           Navigator.of(context).pop(technicians[index]);
@@ -562,86 +570,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildStatusChip(ServiceStatus status) {
-    return Chip(
-      label: Text(
-        _getStatusText(status),
-        style: const TextStyle(
-          fontSize: 12,
-          color: Colors.white,
-        ),
-      ),
-      backgroundColor: _getStatusColor(status),
-    );
-  }
-
-  Color _getStatusColor(ServiceStatus status) {
-    switch (status) {
-      case ServiceStatus.pending:
-        return Colors.orange;
-      case ServiceStatus.assigned:
-        return Colors.blue;
-      case ServiceStatus.onWay:
-        return Colors.purple;
-      case ServiceStatus.inProgress:
-        return Colors.amber;
-      case ServiceStatus.completed:
-        return Colors.green;
-      case ServiceStatus.cancelled:
-        return Colors.red;
-      case ServiceStatus.paid:
-        return Colors.green[700] ?? Colors.green;
-    }
-  }
-
-  IconData _getStatusIcon(ServiceStatus status) {
-    switch (status) {
-      case ServiceStatus.pending:
-        return Icons.pending;
-      case ServiceStatus.assigned:
-        return Icons.assignment;
-      case ServiceStatus.onWay:
-        return Icons.directions_car;
-      case ServiceStatus.inProgress:
-        return Icons.build;
-      case ServiceStatus.completed:
-        return Icons.check;
-      case ServiceStatus.cancelled:
-        return Icons.cancel;
-      case ServiceStatus.paid:
-        return Icons.paid;
-    }
-  }
-
-  String _getStatusText(ServiceStatus status) {
-    switch (status) {
-      case ServiceStatus.pending:
-        return 'Pendiente';
-      case ServiceStatus.assigned:
-        return 'Asignado';
-      case ServiceStatus.onWay:
-        return 'En Camino';
-      case ServiceStatus.inProgress:
-        return 'En Progreso';
-      case ServiceStatus.completed:
-        return 'Completado';
-      case ServiceStatus.cancelled:
-        return 'Cancelado';
-      case ServiceStatus.paid:
-        return 'Pagado';
-    }
-  }
-
-  String _formatDateTime(DateTime dateTime) {
-    return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
-  }
-
-  void _onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
-  }
-
   Future<void> _showDeleteConfirmation(Service service) async {
     bool? shouldDelete = await showDialog<bool>(
       context: context,
@@ -657,7 +585,7 @@ class _HomeScreenState extends State<HomeScreen> {
             TextButton(
               onPressed: () => Navigator.of(context).pop(true),
               style: TextButton.styleFrom(
-                foregroundColor: Colors.red,
+                foregroundColor: AppTheme.errorText,
               ),
               child: const Text('Eliminar'),
             ),
@@ -683,140 +611,97 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Widget _buildMyServicesTab() {
-    return StreamBuilder<List<Service>>(
-      stream: _serviceService.getTechnicianServices(_currentUser!.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
+  void _onItemTapped(int index) {
+    setState(() {
+      _selectedIndex = index;
+    });
+  }
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
+  Widget _buildBottomNavigationBar() {
+    final items = _currentUser!.isAdmin
+        ? [
+            _NavItem(Icons.grid_view_rounded, Icons.grid_view, 'Servicios'),
+            _NavItem(Icons.payments_outlined, Icons.payments_rounded, 'Pagos'),
+            _NavItem(Icons.people_outline_rounded, Icons.people_rounded, 'Usuarios'),
+            _NavItem(Icons.location_city_outlined, Icons.location_city_rounded, 'Sedes'),
+          ]
+        : [
+            _NavItem(Icons.home_outlined, Icons.home_rounded, 'Inicio'),
+            _NavItem(Icons.history_outlined, Icons.history_rounded, 'Historial'),
+            _NavItem(Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
+          ];
 
-        List<Service> services = snapshot.data ?? [];
-
-        if (services.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.assignment_outlined,
-                  size: 64,
-                  color: Colors.grey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'No tienes servicios asignados',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 20,
+            offset: const Offset(0, -5),
+          ),
+        ],
+      ),
+      child: SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: List.generate(
+              items.length,
+              (index) => _buildNavItem(
+                items[index].icon,
+                items[index].activeIcon,
+                items[index].label,
+                index,
+              ),
             ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: services.length,
-          itemBuilder: (context, index) {
-            Service service = services[index];
-            return _buildServiceCard(service, false);
-          },
-        );
-      },
+          ),
+        ),
+      ),
     );
   }
 
-  Widget _buildHistoryTab() {
-    return StreamBuilder<List<Service>>(
-      stream: _serviceService.getCompletedServices(_currentUser!.id),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
-        }
-
-        if (snapshot.hasError) {
-          return Center(
-            child: Text('Error: ${snapshot.error}'),
-          );
-        }
-
-        List<Service> services = snapshot.data ?? [];
-
-        if (services.isEmpty) {
-          return const Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.history,
-                  size: 64,
-                  color: Colors.grey,
-                ),
-                SizedBox(height: 16),
-                Text(
-                  'No hay servicios completados',
-                  style: TextStyle(
-                    fontSize: 18,
-                    color: Colors.grey,
-                  ),
-                ),
-              ],
-            ),
-          );
-        }
-
-        return ListView.builder(
-          padding: const EdgeInsets.all(16),
-          itemCount: services.length,
-          itemBuilder: (context, index) {
-            Service service = services[index];
-            return _buildCompletedServiceCard(service);
-          },
-        );
-      },
-    );
-  }
-
-  Widget _buildCompletedServiceCard(Service service) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      child: ListTile(
-        leading: const CircleAvatar(
-          backgroundColor: Colors.green,
-          child: Icon(Icons.check, color: Colors.white),
-        ),
-        title: Text(
-          service.title,
-          style: const TextStyle(fontWeight: FontWeight.bold),
-        ),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildNavItem(IconData icon, IconData activeIcon, String label, int index) {
+    final isSelected = _selectedIndex == index;
+    
+    return Expanded(
+      child: InkWell(
+        onTap: () => _onItemTapped(index),
+        borderRadius: BorderRadius.circular(12),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Text(service.location),
-            const SizedBox(height: 4),
-            Text(
-              'Completado: ${service.completedAt != null ? _formatDateTime(service.completedAt!) : 'N/A'}',
-              style: const TextStyle(fontSize: 12),
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              curve: Curves.easeInOut,
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: isSelected 
+                    ? const Color(0xFF0052CC).withValues(alpha: 0.1)
+                    : Colors.transparent,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Icon(
+                isSelected ? activeIcon : icon,
+                color: isSelected 
+                    ? const Color(0xFF0052CC)
+                    : Colors.grey[400],
+                size: 24,
+              ),
             ),
             const SizedBox(height: 4),
             Text(
-              'Tipo: ${service.serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}',
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
-            ),
-            Text(
-              'Ganancia: \$${service.technicianCommission.toStringAsFixed(0)}',
-              style: const TextStyle(
-                fontSize: 12,
-                color: Colors.green,
-                fontWeight: FontWeight.bold,
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: isSelected ? 11 : 10,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w500,
+                color: isSelected 
+                    ? const Color(0xFF0052CC)
+                    : Colors.grey[500],
               ),
             ),
           ],
@@ -824,54 +709,12 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
     );
   }
+}
 
-  Widget _buildBottomNavigationBar() {
-    if (_currentUser!.isAdmin) {
-      // Navegación para administradores (4 pestañas)
-      return BottomNavigationBar(
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        type: BottomNavigationBarType.fixed,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.work),
-            label: 'Servicios',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.payments),
-            label: 'Pagos',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.people),
-            label: 'Usuarios',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.location_city),
-            label: 'Sedes',
-          ),
-        ],
-      );
-    } else {
-      // Navegación para técnicos (3 pestañas)
-      return BottomNavigationBar(
-        type: BottomNavigationBarType.fixed,
-        currentIndex: _selectedIndex,
-        onTap: _onItemTapped,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.assignment),
-            label: 'Mis Servicios',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.history),
-            label: 'Historial',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Perfil',
-          ),
-        ],
-      );
-    }
-  }
+class _NavItem {
+  final IconData icon;
+  final IconData activeIcon;
+  final String label;
+
+  _NavItem(this.icon, this.activeIcon, this.label);
 }

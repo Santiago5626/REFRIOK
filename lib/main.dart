@@ -10,6 +10,7 @@ import 'models/user.dart' as app_user;
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/service_management_service.dart';
+import 'theme/app_theme.dart';
 
 // Manejador de mensajes en segundo plano
 @pragma('vm:entry-point')
@@ -59,27 +60,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'REFRIOK',
-      theme: ThemeData(
-        primarySwatch: Colors.blue,
-        useMaterial3: true,
-        scaffoldBackgroundColor: Colors.white,
-        appBarTheme: const AppBarTheme(
-          backgroundColor: Color(0xFF1E88E5), // Azul más profundo
-          foregroundColor: Colors.white,
-          elevation: 0,
-        ),
-        elevatedButtonTheme: ElevatedButtonThemeData(
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Color(0xFF1E88E5), // Azul más profundo
-            foregroundColor: Colors.white,
-          ),
-        ),
-        colorScheme: ColorScheme.light(
-          primary: Color(0xFF1E88E5), // Azul más profundo
-          secondary: Color(0xFF64B5F6), // Azul más claro
-          tertiary: Color(0xFF42A5F5), // Azul intermedio
-        ),
-      ),
+      theme: AppTheme.lightTheme,
       initialRoute: '/',
       routes: {
         '/': (context) => const AuthWrapper(),

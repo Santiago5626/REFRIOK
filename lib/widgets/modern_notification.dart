@@ -131,24 +131,24 @@ class _ModernNotificationState extends State<ModernNotification>
         margin: const EdgeInsets.symmetric(horizontal: 24),
         padding: const EdgeInsets.all(28),
         decoration: BoxDecoration(
-          color: Colors.white.withOpacity(0.95),
+          color: Colors.white.withValues(alpha: 0.95),
           borderRadius: BorderRadius.circular(28),
           boxShadow: [
             BoxShadow(
-              color: _getColor().withOpacity(0.15),
+              color: _getColor().withValues(alpha: 0.15),
               blurRadius: 24,
               offset: const Offset(0, 8),
               spreadRadius: 0,
             ),
             BoxShadow(
-              color: Colors.black.withOpacity(0.08),
+              color: Colors.black.withValues(alpha: 0.08),
               blurRadius: 16,
               offset: const Offset(0, 4),
               spreadRadius: 0,
             ),
           ],
           border: Border.all(
-            color: _getColor().withOpacity(0.1),
+            color: _getColor().withValues(alpha: 0.1),
             width: 1.5,
           ),
         ),
@@ -281,7 +281,7 @@ class _ModernNotificationOverlayState extends State<ModernNotificationOverlay>
                 child: BackdropFilter(
                   filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
                   child: Container(
-                    color: Colors.black.withOpacity(0.25),
+                    color: Colors.black.withValues(alpha: 0.25),
                   ),
                 ),
               ),
