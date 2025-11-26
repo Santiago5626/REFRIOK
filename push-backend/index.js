@@ -18,6 +18,7 @@ admin.initializeApp({
 });
 
 app.post('/sendPush', async (req, res) => {
+    console.log('🔔 POST /sendPush recibido →', req.body);
     const { technicianId, title, body, data, apiKey } = req.body;
     // Opcional: proteger con una clave sencilla
     if (process.env.API_KEY && apiKey !== process.env.API_KEY) {
@@ -38,6 +39,16 @@ app.post('/sendPush', async (req, res) => {
         console.error('Error enviando push', e);
         res.status(500).json({ success: false, error: e.message });
     }
+});
+
+// Ruta raíz – confirma que el servidor está activo
+app.get('/', (req, res) => {
+    res.send('✅ Backend activo');
+});
+
+// Ruta de salud – útil para pruebas rápidas
+app.get('/health', (req, res) => {
+    res.json({ status: 'ok' });
 });
 
 const PORT = process.env.PORT || 3000;
