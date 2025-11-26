@@ -2,6 +2,8 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class NotificationService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -90,6 +92,21 @@ class NotificationService {
     }
   }
 
+  Future<void> saveTokenToUser(String userId) async {
+    try {
+      String? token = await getToken();
+      if (token != null) {
+        await _firestore.collection('users').doc(userId).update({
+          'fcmToken': token,
+          'lastTokenUpdate': FieldValue.serverTimestamp(),
+        });
+        print('Token FCM guardado para el usuario $userId');
+      }
+    } catch (e) {
+      print('Error guardando token FCM: $e');
+    }
+  }
+
   Future<void> _showLocalNotification(RemoteMessage message) async {
     const AndroidNotificationDetails androidPlatformChannelSpecifics =
         AndroidNotificationDetails(
@@ -153,7 +170,7 @@ class NotificationService {
     await _createNotification(
       userId: technicianId,
       title: 'Nuevo Servicio Asignado',
-      message: '$serviceTitle - Cliente: $clientName\nUbicación: $location',
+      message: 'Se te ha asignado el servicio: $serviceTitle',
       type: 'service_assignment',
       data: {
         'serviceId': serviceId,
@@ -163,15 +180,20 @@ class NotificationService {
       },
     );
 
-    // Mostrar notificación local
-    await showServiceAssignmentNotification(
-      serviceTitle: serviceTitle,
-      clientName: clientName,
-      location: location,
-    );
-
     // Enviar notificación FCM al técnico
-    await subscribeToTopic('technician_$technicianId');
+    // await subscribeToTopic('technician_$technicianId'); // REMOVIDO: El técnico se suscribe al iniciar sesión
+    
+    // Enviar Push Notification real usando el backend
+    await sendPushNotification(
+      technicianId: technicianId,
+      title: 'Nuevo Servicio Asignado',
+      body: 'Se te ha asignado el servicio: $serviceTitle',
+      data: {
+        'serviceId': serviceId,
+        'type': 'service_assignment',
+        'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+      },
+    );
   }
 
   // Notificar cambio de estado del servicio
@@ -182,92 +204,40 @@ class NotificationService {
     required String technicianId,
     String? clientName,
   }) async {
-    String message = 'El servicio "$serviceTitle" ha cambiado a estado: $newStatus';
+    String statusInSpanish = _getStatusText(newStatus);
+    String message = 'El servicio "$serviceTitle" ha cambiado a: $statusInSpanish';
     if (clientName != null) {
       message += '\nCliente: $clientName';
     }
 
-    // Crear notificación en Firestore
-    await _createNotification(
-      userId: technicianId,
-      title: 'Actualización de Servicio',
-      message: message,
-      type: 'service_status_change',
-      data: {
-        'serviceId': serviceId,
-        'serviceTitle': serviceTitle,
-        'newStatus': newStatus,
-        'clientName': clientName,
-      },
-    );
-
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-        AndroidNotificationDetails(
-      'service_status',
-      'Estado de Servicios',
-      channelDescription: 'Notificaciones de cambios en el estado de servicios',
-      importance: Importance.high,
-      priority: Priority.high,
-    );
-
-    const NotificationDetails platformChannelSpecifics =
-        NotificationDetails(android: androidPlatformChannelSpecifics);
-
-    await _localNotifications.show(
-      serviceId.hashCode,
-      'Actualización de Servicio',
-      message,
-      platformChannelSpecifics,
-    );
-  }
-
-  // Get unread notifications count
-  Stream<int> getUnreadCount(String userId) {
-    return _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .where('isRead', isEqualTo: false)
-        .snapshots()
-        .map((snapshot) => snapshot.docs.length);
-  }
-
-  // Mark all notifications as read
-  Future<void> markAllAsRead(String userId) async {
-    try {
-      final batch = _firestore.batch();
-      final notifications = await _firestore
-          .collection('notifications')
-          .where('userId', isEqualTo: userId)
-          .where('isRead', isEqualTo: false)
-          .get();
-
-      for (var doc in notifications.docs) {
-        batch.update(doc.reference, {'isRead': true});
-      }
-
-      await batch.commit();
-    } catch (e) {
-      print('Error marking all notifications as read: $e');
-      throw e;
+    // Notificar al administrador
+    String? adminId = await _getAdminId();
+    if (adminId != null) {
+      await _createNotification(
+        userId: adminId,
+        title: 'Actualización de Servicio',
+        message: message,
+        type: 'service_status_change',
+        data: {
+          'serviceId': serviceId,
+          'serviceTitle': serviceTitle,
+          'newStatus': newStatus,
+          'clientName': clientName,
+        },
+      );
+      
+      // Enviar Push Notification real al admin
+      await sendPushNotification(
+        technicianId: adminId, // Reutilizamos el parámetro technicianId para el adminId
+        title: 'Actualización de Servicio',
+        body: message,
+        data: {
+          'serviceId': serviceId,
+          'type': 'service_status_change',
+          'click_action': 'FLUTTER_NOTIFICATION_CLICK',
+        },
+      );
     }
-  }
-
-  // Get user notifications
-  Stream<List<Map<String, dynamic>>> getUserNotifications(String userId) {
-    return _firestore
-        .collection('notifications')
-        .where('userId', isEqualTo: userId)
-        .orderBy('createdAt', descending: true)
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((doc) => {
-                  'id': doc.id,
-                  ...doc.data(),
-                  'createdAt': (doc.data()['createdAt'] as Timestamp)
-                      .toDate()
-                      .toIso8601String(),
-                })
-            .toList());
   }
 
   // Mark notification as read
@@ -318,13 +288,23 @@ class NotificationService {
   }
 
   Future<void> subscribeToTopic(String topic) async {
-    await _firebaseMessaging.subscribeToTopic(topic);
-    print('Suscrito al topic: $topic');
+    if (!kIsWeb) {
+      await _firebaseMessaging.subscribeToTopic(topic);
+      print('Suscrito al topic: $topic');
+    } else {
+      print(
+          'Subscripción a topics no soportada en web, omitiendo para el topic: $topic');
+    }
   }
 
   Future<void> unsubscribeFromTopic(String topic) async {
-    await _firebaseMessaging.unsubscribeFromTopic(topic);
-    print('Desuscrito del topic: $topic');
+    if (!kIsWeb) {
+      await _firebaseMessaging.unsubscribeFromTopic(topic);
+      print('Desuscrito del topic: $topic');
+    } else {
+      print(
+          'Desuscripción de topics no soportada en web, omitiendo para el topic: $topic');
+    }
   }
 
   // Obtener el ID del administrador
@@ -374,33 +354,11 @@ class NotificationService {
     required String reason,
   }) async {
     try {
-      await _firestore.collection('notifications').add({
-        'userId': technicianId,
-        'title': 'Cuenta Bloqueada',
-        'message': 'Tu cuenta ha sido bloqueada temporalmente. Razón: $reason',
-        'type': 'technician_blocked',
-        'createdAt': FieldValue.serverTimestamp(),
-        'isRead': false,
-      });
-
-      // Mostrar notificación local
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails(
-        'account_status',
-        'Estado de Cuenta',
-        channelDescription: 'Notificaciones sobre el estado de la cuenta',
-        importance: Importance.high,
-        priority: Priority.high,
-      );
-
-      const NotificationDetails platformChannelSpecifics =
-          NotificationDetails(android: androidPlatformChannelSpecifics);
-
-      await _localNotifications.show(
-        'blocked_$technicianId'.hashCode,
-        'Cuenta Bloqueada',
-        'Tu cuenta ha sido bloqueada temporalmente. Razón: $reason',
-        platformChannelSpecifics,
+      await _createNotification(
+        userId: technicianId,
+        title: 'Cuenta Bloqueada',
+        message: 'Tu cuenta ha sido bloqueada. Razón: $reason',
+        type: 'technician_blocked',
       );
     } catch (e) {
       print('Error al notificar bloqueo de técnico: $e');
@@ -412,37 +370,98 @@ class NotificationService {
     required String technicianId,
   }) async {
     try {
-      await _firestore.collection('notifications').add({
-        'userId': technicianId,
-        'title': 'Cuenta Desbloqueada',
-        'message': 'Tu cuenta ha sido desbloqueada. Ya puedes aceptar nuevos servicios.',
-        'type': 'technician_unblocked',
-        'createdAt': FieldValue.serverTimestamp(),
-        'isRead': false,
-      });
-
-      // Mostrar notificación local
-      const AndroidNotificationDetails androidPlatformChannelSpecifics =
-          AndroidNotificationDetails(
-        'account_status',
-        'Estado de Cuenta',
-        channelDescription: 'Notificaciones sobre el estado de la cuenta',
-        importance: Importance.high,
-        priority: Priority.high,
-      );
-
-      const NotificationDetails platformChannelSpecifics =
-          NotificationDetails(android: androidPlatformChannelSpecifics);
-
-      await _localNotifications.show(
-        'unblocked_$technicianId'.hashCode,
-        'Cuenta Desbloqueada',
-        'Tu cuenta ha sido desbloqueada. Ya puedes aceptar nuevos servicios.',
-        platformChannelSpecifics,
+      await _createNotification(
+        userId: technicianId,
+        title: 'Cuenta Desbloqueada',
+        message: 'Tu cuenta ha sido desbloqueada y ya puedes operar con normalidad.',
+        type: 'technician_unblocked',
       );
     } catch (e) {
       print('Error al notificar desbloqueo de técnico: $e');
     }
+  }
+  // Enviar notificación Push usando el backend
+  Future<void> sendPushNotification({
+    required String technicianId,
+    required String title,
+    required String body,
+    Map<String, dynamic>? data,
+  }) async {
+    try {
+      // URL del backend en Render
+      const String backendUrl = 'https://refriok.onrender.com';
+
+      if (backendUrl == 'YOUR_RENDER_BACKEND_URL') {
+        print('⚠️ URL del backend no configurada. No se enviará la notificación push.');
+        return;
+      }
+
+      final response = await http.post(
+        Uri.parse('$backendUrl/sendPush'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'technicianId': technicianId,
+          'title': title,
+          'body': body,
+          'data': data,
+          // 'apiKey': 'TU_API_KEY_SI_CONFIGURASTE_UNA',
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        print('✅ Notificación push enviada con éxito');
+      } else {
+        print('❌ Error enviando push: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ Error conectando con el backend de notificaciones: $e');
+    }
+  }
+
+  // Get unread notifications count for a user
+  Stream<int> getUnreadCount(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .where('isRead', isEqualTo: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.length);
+  }
+
+  // Mark all notifications as read for a user
+  Future<void> markAllAsRead(String userId) async {
+    try {
+      QuerySnapshot unreadNotifications = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      WriteBatch batch = _firestore.batch();
+      for (DocumentSnapshot doc in unreadNotifications.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error marking all notifications as read: $e');
+      throw e;
+    }
+  }
+
+  // Get user notifications stream
+  Stream<List<Map<String, dynamic>>> getUserNotifications(String userId) {
+    return _firestore
+        .collection('notifications')
+        .where('userId', isEqualTo: userId)
+        .orderBy('createdAt', descending: true)
+        .snapshots()
+        .map((snapshot) => snapshot.docs.map((doc) {
+              return {
+                'id': doc.id,
+                ...doc.data(),
+              };
+            }).toList());
   }
 }
 

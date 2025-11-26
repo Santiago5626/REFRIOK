@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/notification_service.dart';
 import '../services/auth_service.dart';
 import '../services/service_management_service.dart';
 import '../screens/service_detail_screen.dart';
+import '../utils/dialog_utils.dart';
 
 class NotificationsScreen extends StatefulWidget {
   const NotificationsScreen({super.key});
@@ -48,14 +50,22 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
           IconButton(
             icon: const Icon(Icons.mark_email_read),
             onPressed: () async {
-              await _notificationService.markAllAsRead(_currentUserId!);
-              if (!mounted) return;
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Todas las notificaciones marcadas como leídas'),
-                  backgroundColor: Colors.green,
-                ),
-              );
+              try {
+                await _notificationService.markAllAsRead(_currentUserId!);
+                if (!mounted) return;
+                await showAnimatedDialog(
+                  context,
+                  DialogType.success,
+                  'Todas las notificaciones marcadas como leídas',
+                );
+              } catch (e) {
+                if (!mounted) return;
+                await showAnimatedDialog(
+                  context,
+                  DialogType.error,
+                  'Error al marcar notificaciones: $e',
+                );
+              }
             },
           ),
         ],
@@ -112,7 +122,16 @@ class _NotificationsScreenState extends State<NotificationsScreen> {
   Widget _buildNotificationCard(Map<String, dynamic> notification) {
     final bool isRead = notification['isRead'] ?? false;
     final String type = notification['type'] ?? '';
-    final DateTime createdAt = DateTime.parse(notification['createdAt']);
+    
+    DateTime createdAt;
+    final dynamic rawCreatedAt = notification['createdAt'];
+    if (rawCreatedAt is Timestamp) {
+      createdAt = rawCreatedAt.toDate();
+    } else if (rawCreatedAt is String) {
+      createdAt = DateTime.parse(rawCreatedAt);
+    } else {
+      createdAt = DateTime.now();
+    }
     
     return Card(
       margin: const EdgeInsets.only(bottom: 12),

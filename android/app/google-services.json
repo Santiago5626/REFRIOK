@@ -1,21 +1,21 @@
 {
   "project_info": {
-    "project_number": "557548135367",
-    "project_id": "tech-service-app-e9ade",
-    "storage_bucket": "tech-service-app-e9ade.firebasestorage.app"
+    "project_number": "1036659243560",
+    "project_id": "refriok",
+    "storage_bucket": "refriok.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:557548135367:android:ca56dccecaf4f22c9fafe2",
+        "mobilesdk_app_id": "1:1036659243560:android:c203ec92287aeb6d03131d",
         "android_client_info": {
-          "package_name": "com.techservice.app"
+          "package_name": "com.refriok.app"
         }
       },
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAdUfoq0JA5OI7LSJWRXPsdYTVCsp-KNKo"
+          "current_key": "AIzaSyD-I3M4HZV6EHhhxYVrfT9pz9ZxDoCDO0g"
         }
       ],
       "services": {

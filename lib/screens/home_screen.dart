@@ -28,11 +28,21 @@ class _HomeScreenState extends State<HomeScreen> {
   final NotificationService _notificationService = NotificationService();
   app_user.User? _currentUser;
   int _selectedIndex = 0;
-
   @override
   void initState() {
     super.initState();
     _loadCurrentUser();
+    // Guardar token FCM al iniciar
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _saveFcmToken();
+    });
+  }
+
+  Future<void> _saveFcmToken() async {
+    final user = await _authService.getCurrentUserData();
+    if (user != null) {
+      await _notificationService.saveTokenToUser(user.id);
+    }
   }
 
   Future<void> _loadCurrentUser() async {
@@ -502,8 +512,8 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Future<void> _showAssignDialog(Service service) async {
     final BuildContext currentContext = context;
-    // 1. Fetch all users once
-    List<app_user.User> allUsers = await _authService.getAllUsers().first;
+    // 1. Fetch all users once using a Future-based method
+    List<app_user.User> allUsers = await _authService.getUsers();
 
     // 2. Filter technicians based on the service's sedeId
     // If service.sedeId is null, this will show all technicians (graceful fallback)

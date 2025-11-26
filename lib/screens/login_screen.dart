@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../services/auth_service.dart';
+import '../services/notification_service.dart';
 import '../models/user.dart' as app_user;
 import 'home_screen.dart';
 
@@ -47,6 +48,15 @@ class _LoginScreenState extends State<LoginScreen> {
             _showBlockedDialog();
           } else {
             if (!mounted) return;
+            
+            // Suscribirse a notificaciones push
+            final notificationService = NotificationService();
+            if (user.isAdmin) {
+              await notificationService.subscribeToTopic('admin');
+            } else {
+              await notificationService.subscribeToTopic('technician_${user.id}');
+            }
+
             Navigator.pushReplacement(
               context,
               MaterialPageRoute(builder: (context) => const HomeScreen()),

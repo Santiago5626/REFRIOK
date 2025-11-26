@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_auth/firebase_auth.dart' as firebase_auth;
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
@@ -9,6 +9,7 @@ import 'services/scheduler_service.dart';
 import 'models/user.dart' as app_user;
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
+import 'services/service_management_service.dart';
 
 // Manejador de mensajes en segundo plano
 @pragma('vm:entry-point')
@@ -96,7 +97,7 @@ class AuthWrapper extends StatefulWidget {
 }
 
 class _AuthWrapperState extends State<AuthWrapper> {
-  Stream<User?>? _authStream;
+  Stream<firebase_auth.User?>? _authStream;
   Object? _error;
 
   @override
@@ -104,7 +105,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
     super.initState();
     // Move the potentially failing call to initState and wrap in a try-catch.
     try {
-      _authStream = FirebaseAuth.instance.authStateChanges();
+      _authStream = firebase_auth.FirebaseAuth.instance.authStateChanges();
     } catch (e) {
       // If it fails, store the error to show it in the build method.
       _error = e;
@@ -129,14 +130,14 @@ class _AuthWrapperState extends State<AuthWrapper> {
         ),
       );
     }
-    
+
     // Show a loading indicator while the stream is being initialized.
     if (_authStream == null) {
       return const Scaffold(body: Center(child: CircularProgressIndicator()));
     }
 
     // If initialization was successful, use the StreamBuilder.
-    return StreamBuilder<User?>(
+    return StreamBuilder<firebase_auth.User?>(
       stream: _authStream!,
       builder: (context, snapshot) {
         if (snapshot.hasError) {

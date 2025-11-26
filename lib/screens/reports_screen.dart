@@ -11,7 +11,8 @@ class ReportsScreen extends StatefulWidget {
   State<ReportsScreen> createState() => _ReportsScreenState();
 }
 
-class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateMixin {
+class _ReportsScreenState extends State<ReportsScreen>
+    with TickerProviderStateMixin {
   final SedeService _sedeService = SedeService();
   late TabController _tabController;
   String _selectedPeriod = 'today';
@@ -32,22 +33,22 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Reportes y Estadísticas'),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          tabs: const [
-            Tab(text: 'General', icon: Icon(Icons.analytics)),
-            Tab(text: 'Por Sede', icon: Icon(Icons.location_city)),
-            Tab(text: 'Ganancias', icon: Icon(Icons.attach_money)),
-          ],
-        ),
+        title: const Text('Reportes'),
+        backgroundColor: const Color(0xFF1E88E5),
+        foregroundColor: Colors.white,
       ),
       body: Column(
         children: [
+          TabBar(
+            controller: _tabController,
+            labelColor: Colors.black,
+            unselectedLabelColor: Colors.grey,
+            tabs: const [
+              Tab(text: 'General', icon: Icon(Icons.analytics)),
+              Tab(text: 'Por Sede', icon: Icon(Icons.location_city)),
+              Tab(text: 'Ganancias', icon: Icon(Icons.attach_money)),
+            ],
+          ),
           _buildPeriodSelector(),
           Expanded(
             child: TabBarView(
@@ -73,7 +74,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
       ),
       child: Row(
         children: [
-          const Text('Período: ', style: TextStyle(fontWeight: FontWeight.bold)),
+          const Text('Período: ',
+              style: TextStyle(fontWeight: FontWeight.bold)),
           Expanded(
             child: DropdownButton<String>(
               value: _selectedPeriod,
@@ -115,15 +117,20 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           padding: const EdgeInsets.all(16),
           child: Column(
             children: [
-              _buildStatsCard('Total de Servicios', stats['total'].toString(), Icons.work, Colors.blue),
+              _buildStatsCard('Total de Servicios', stats['total'].toString(),
+                  Icons.work, Colors.blue),
               const SizedBox(height: 16),
-              _buildStatsCard('Completados', stats['completed'].toString(), Icons.check_circle, Colors.green),
+              _buildStatsCard('Completados', stats['completed'].toString(),
+                  Icons.check_circle, Colors.green),
               const SizedBox(height: 16),
-              _buildStatsCard('Pendientes', stats['pending'].toString(), Icons.pending, Colors.orange),
+              _buildStatsCard('Pendientes', stats['pending'].toString(),
+                  Icons.pending, Colors.orange),
               const SizedBox(height: 16),
-              _buildStatsCard('En Progreso', stats['inProgress'].toString(), Icons.build, Colors.amber),
+              _buildStatsCard('En Progreso', stats['inProgress'].toString(),
+                  Icons.build, Colors.amber),
               const SizedBox(height: 16),
-              _buildStatsCard('Cancelados', stats['cancelled'].toString(), Icons.cancel, Colors.red),
+              _buildStatsCard('Cancelados', stats['cancelled'].toString(),
+                  Icons.cancel, Colors.red),
               const SizedBox(height: 24),
               _buildServiceTypeChart(services),
             ],
@@ -203,7 +210,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildStatsCard(String title, String value, IconData icon, Color color) {
+  Widget _buildStatsCard(
+      String title, String value, IconData icon, Color color) {
     return Card(
       elevation: 4,
       child: Padding(
@@ -330,14 +338,15 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
         for (final doc in services) {
           final data = doc.data() as Map<String, dynamic>;
           final location = data['location'] as String? ?? '';
-          
+
           // Buscar la sede basada en la ubicación
           for (final sede in sedes) {
             if (location.contains(sede.nombre)) {
               sedeStats[sede.id]!['total']++;
-              if (data['status'] == 'completed') {
+              if (data['status'] == 'completed' || data['status'] == 'paid') {
                 sedeStats[sede.id]!['completed']++;
-                sedeStats[sede.id]!['earnings'] += (data['finalPrice'] as num?)?.toDouble() ?? 0.0;
+                sedeStats[sede.id]!['earnings'] +=
+                    (data['finalPrice'] as num?)?.toDouble() ?? 0.0;
               }
               break;
             }
@@ -350,7 +359,7 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
           itemBuilder: (context, index) {
             final sedeId = sedeStats.keys.elementAt(index);
             final stats = sedeStats[sedeId]!;
-            
+
             return Card(
               margin: const EdgeInsets.only(bottom: 16),
               child: Padding(
@@ -399,7 +408,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     );
   }
 
-  Widget _buildSedeStatItem(String label, String value, IconData icon, Color color) {
+  Widget _buildSedeStatItem(
+      String label, String value, IconData icon, Color color) {
     return Column(
       children: [
         Icon(icon, color: color, size: 24),
@@ -426,30 +436,40 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     Query query = FirebaseFirestore.instance.collection('services');
 
     // Filtrar por período
-    DateTime now = DateTime.now();
+    final now = DateTime.now();
     DateTime startDate;
+    DateTime? endDate;
 
     switch (_selectedPeriod) {
       case 'today':
         startDate = DateTime(now.year, now.month, now.day);
+        endDate = startDate.add(const Duration(days: 1));
         break;
       case 'week':
         startDate = now.subtract(Duration(days: now.weekday - 1));
         startDate = DateTime(startDate.year, startDate.month, startDate.day);
+        endDate = startDate.add(const Duration(days: 7));
         break;
       case 'month':
         startDate = DateTime(now.year, now.month, 1);
+        endDate = (now.month < 12)
+            ? DateTime(now.year, now.month + 1, 1)
+            : DateTime(now.year + 1, 1, 1);
         break;
-      default:
-        return query.snapshots();
+      default: // 'all'
+        return query.orderBy('createdAt', descending: true).snapshots();
     }
 
+    // Firestore queries require ordering by the same field that is used for range filters
     return query
         .where('createdAt', isGreaterThanOrEqualTo: startDate.toIso8601String())
+        .where('createdAt', isLessThan: endDate.toIso8601String())
+        .orderBy('createdAt', descending: true)
         .snapshots();
   }
 
-  Map<String, int> _calculateGeneralStats(List<QueryDocumentSnapshot> services) {
+  Map<String, int> _calculateGeneralStats(
+      List<QueryDocumentSnapshot> services) {
     int total = services.length;
     int completed = 0;
     int pending = 0;
@@ -488,7 +508,8 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     };
   }
 
-  Map<String, dynamic> _calculateEarnings(List<QueryDocumentSnapshot> services) {
+  Map<String, dynamic> _calculateEarnings(
+      List<QueryDocumentSnapshot> services) {
     double total = 0;
     double admin = 0;
     double technicians = 0;
@@ -498,16 +519,18 @@ class _ReportsScreenState extends State<ReportsScreen> with TickerProviderStateM
     for (final doc in services) {
       final data = doc.data() as Map<String, dynamic>;
       final status = data['status'] as String?;
-      
+
       if (status == 'completed' || status == 'paid') {
         final finalPrice = (data['finalPrice'] as num?)?.toDouble() ?? 0.0;
-        final adminCommission = (data['adminCommission'] as num?)?.toDouble() ?? 0.0;
-        final technicianCommission = (data['technicianCommission'] as num?)?.toDouble() ?? 0.0;
-        
+        final adminCommission =
+            (data['adminCommission'] as num?)?.toDouble() ?? 0.0;
+        final technicianCommission =
+            (data['technicianCommission'] as num?)?.toDouble() ?? 0.0;
+
         total += finalPrice;
         admin += adminCommission;
         technicians += technicianCommission;
-        
+
         if (status == 'paid' || (data['isPaid'] as bool?) == true) {
           paid++;
         } else {

@@ -1,6 +1,9 @@
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_core/firebase_core.dart';
+import '../firebase_options.dart';
 import '../models/user.dart' as app_user;
+import 'notification_service.dart';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -81,6 +84,13 @@ class AuthService {
       if (user.shouldBeBlocked() && !user.isAdmin) {
         await _updateUserBlockStatus(user.id, true);
         user = user.copyWith(isBlocked: true);
+      }
+
+      // Guardar token FCM
+      try {
+        await NotificationService().saveTokenToUser(user.id);
+      } catch (e) {
+        print('Error al guardar token FCM en login: $e');
       }
 
       return user;
@@ -207,6 +217,8 @@ class AuthService {
     }
   }
 
+
+
   // Crear nuevo usuario (solo para administradores)
   Future<String?> createUser({
     required String email,
@@ -216,9 +228,8 @@ class AuthService {
     String? sedeId,
   }) async {
     User? currentUser = _auth.currentUser;
-    String? adminEmail = currentUser?.email;
-    String adminPassword = 'Liam1234#'; // Contraseña del admin
-    
+    FirebaseApp? secondaryApp;
+
     try {
       // Verificar que el usuario actual sea admin
       if (currentUser == null) {
@@ -249,9 +260,81 @@ class AuthService {
         throw 'Ya existe un usuario con este correo electrónico';
       }
 
-      // Crear el usuario en Firebase Auth
+      // Verificar si el email ya existe en Firebase Auth (usuarios huérfanos)
+      try {
+        List<String> signInMethods = await _auth.fetchSignInMethodsForEmail(email);
+        if (signInMethods.isNotEmpty) {
+          // El usuario existe en Auth pero no en Firestore (usuario huérfano)
+          print('Usuario huérfano detectado: $email. Intentando limpieza automática...');
+          
+          // Intentar limpiar el usuario huérfano
+          try {
+            // Crear una app secundaria temporal para eliminar el usuario huérfano
+            FirebaseApp? cleanupApp;
+            try {
+              cleanupApp = await Firebase.initializeApp(
+                name: 'CleanupApp_${DateTime.now().millisecondsSinceEpoch}',
+                options: DefaultFirebaseOptions.currentPlatform,
+              );
+              
+              FirebaseAuth cleanupAuth = FirebaseAuth.instanceFor(app: cleanupApp);
+              
+              // Intentar iniciar sesión con el email (esto fallará, pero nos da acceso al usuario)
+              // Como no conocemos la contraseña, usaremos otro método
+              
+              // Nota: La eliminación de usuarios de Auth sin conocer la contraseña
+              // requiere Firebase Admin SDK o acceso directo a la consola.
+              // Por ahora, mostraremos un mensaje más claro al usuario.
+              
+              await cleanupApp.delete();
+              
+              throw 'Ya existe una cuenta con este correo electrónico en Firebase Auth.\\n\\n'
+                  'Este usuario fue creado anteriormente pero no se completó el proceso.\\n\\n'
+                  'Para continuar, por favor:\\n'
+                  '1. Ve a Firebase Console → Authentication → Users\\n'
+                  '2. Busca y elimina el usuario: $email\\n'
+                  '3. Intenta crear el usuario nuevamente\\n\\n'
+                  'O usa un correo electrónico diferente.';
+            } finally {
+              if (cleanupApp != null) {
+                try {
+                  await cleanupApp.delete();
+                } catch (e) {
+                  print('Error al eliminar app de limpieza: $e');
+                }
+              }
+            }
+          } catch (e) {
+            // Si la limpieza falla, mostrar mensaje al usuario
+            if (e is String) {
+              rethrow;
+            }
+            throw 'Ya existe una cuenta con este correo electrónico en Firebase Auth.\\n\\n'
+                'No se pudo limpiar automáticamente. Por favor, use un correo diferente o contacte al administrador.';
+          }
+        }
+      } catch (e) {
+        // Si el error es de tipo String (nuestro mensaje personalizado), relanzarlo
+        if (e is String) {
+          rethrow;
+        }
+        // Si es otro tipo de error (ej: problemas de red), continuar
+        print('Advertencia al verificar email en Auth: $e');
+      }
+
+
+      // Inicializar una app secundaria para crear el usuario sin cerrar sesión
+      secondaryApp = await Firebase.initializeApp(
+        name: 'SecondaryApp',
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+
+      // Obtener instancia de Auth para la app secundaria
+      FirebaseAuth secondaryAuth = FirebaseAuth.instanceFor(app: secondaryApp);
+
+      // Crear el usuario en la app secundaria
       UserCredential newUserCredential =
-          await _auth.createUserWithEmailAndPassword(
+          await secondaryAuth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
@@ -262,7 +345,7 @@ class AuthService {
 
       String newUserId = newUserCredential.user!.uid;
 
-      // Crear el documento en Firestore con el UID de Firebase Auth
+      // Crear el documento en Firestore usando la instancia PRINCIPAL (con permisos de admin)
       Map<String, dynamic> userData = {
         'id': newUserId,
         'name': name,
@@ -281,39 +364,13 @@ class AuthService {
 
       await _firestore.collection('users').doc(newUserId).set(userData);
 
-      // Cerrar sesión del nuevo usuario silenciosamente
-      await _auth.signOut();
-
-      // Restaurar la sesión del admin silenciosamente
-      if (adminEmail != null) {
-        try {
-          await _auth.signInWithEmailAndPassword(
-            email: adminEmail,
-            password: adminPassword,
-          );
-        } catch (restoreError) {
-          print('Advertencia: No se pudo restaurar la sesión del admin: $restoreError');
-          // No lanzar error aquí, el usuario fue creado exitosamente
-        }
-      }
+      // Cerrar sesión en la app secundaria
+      await secondaryAuth.signOut();
 
       return newUserId;
     } catch (e) {
       print('Error al crear usuario: $e');
-      
-      // Intentar restaurar la sesión del admin en caso de error
-      if (adminEmail != null) {
-        try {
-          await _auth.signOut();
-          await _auth.signInWithEmailAndPassword(
-            email: adminEmail,
-            password: adminPassword,
-          );
-        } catch (restoreError) {
-          print('Error al restaurar sesión del admin después del fallo: $restoreError');
-        }
-      }
-      
+
       if (e is FirebaseAuthException) {
         switch (e.code) {
           case 'weak-password':
@@ -322,20 +379,21 @@ class AuthService {
             throw 'Ya existe una cuenta con este correo electrónico en Firebase Auth';
           case 'invalid-email':
             throw 'El correo electrónico no es válido';
-          case 'permission-denied':
-            // No mostrar este error al usuario, el usuario se creó correctamente
-            return null;
           default:
             throw e.message ?? 'Error al crear usuario en Firebase Auth';
         }
       }
-      
-      if (e.toString().contains('permission-denied') || e.toString().contains('permisos insuficiente')) {
-        // Si es un error de permisos pero el usuario se creó, no mostrar error
-        return null;
-      }
-      
+
       rethrow;
+    } finally {
+      // Limpiar la app secundaria
+      if (secondaryApp != null) {
+        try {
+          await secondaryApp.delete();
+        } catch (e) {
+          print('Error al eliminar app secundaria: $e');
+        }
+      }
     }
   }
 

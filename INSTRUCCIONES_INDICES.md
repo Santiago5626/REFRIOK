@@ -8,6 +8,7 @@
 ## Pasos para Completar
 
 ### 1. Completar Login de Firebase
+- instala firebase tools npm install -g firebase-tools
 - El comando `npx firebase login` está ejecutándose
 - Se abrirá tu navegador para autenticarte con Google
 - Autoriza el acceso a Firebase CLI

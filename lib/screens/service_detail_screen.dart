@@ -6,6 +6,7 @@ import '../models/user.dart' as app_user;
 import '../services/service_management_service.dart';
 import '../services/auth_service.dart';
 import '../services/invoice_service.dart';
+import '../utils/dialog_utils.dart';
 import 'edit_service_screen.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
@@ -27,10 +28,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
   final AuthService _authService = AuthService();
   bool _isLoading = false;
   app_user.User? _currentUser;
+  late Service _currentService; // Make it mutable
 
   @override
   void initState() {
     super.initState();
+    _currentService = widget.service; // Initialize with widget.service
     _loadCurrentUser();
   }
 
@@ -65,21 +68,13 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
     if (success) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Servicio aceptado exitosamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
+      await showAnimatedDialog(
+          context, DialogType.success, 'Servicio aceptado exitosamente');
       Navigator.pop(context);
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al aceptar el servicio'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAnimatedDialog(
+          context, DialogType.error, 'Error al aceptar el servicio');
     }
   }
 
@@ -88,29 +83,45 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       _isLoading = true;
     });
 
-    bool success = await _serviceService.markOnWay(widget.service.id);
-
-    setState(() {
-      _isLoading = false;
-    });
+    bool success = await _serviceService.markOnWay(_currentService.id);
 
     if (success) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Marcado como en camino'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
+      // Refrescar el servicio
+      try {
+        final updatedService = await _serviceService.getServiceById(_currentService.id);
+        if (updatedService != null) {
+          setState(() {
+            _currentService = updatedService;
+            _isLoading = false;
+          });
+          if (!mounted) return;
+          await showAnimatedDialog(
+              context, DialogType.success, 'Marcado como en camino');
+          if (!mounted) return;
+          Navigator.pop(context, true);
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+          if (!mounted) return;
+          showAnimatedDialog(
+              context, DialogType.error, 'Error al refrescar el servicio');
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!mounted) return;
+        showAnimatedDialog(
+            context, DialogType.error, 'Error al actualizar estado: $e');
+      }
     } else {
+      setState(() {
+        _isLoading = false;
+      });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al actualizar estado'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAnimatedDialog(
+          context, DialogType.error, 'Error al actualizar estado');
     }
   }
 
@@ -165,162 +176,128 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       serviceType,
     );
 
-    setState(() {
-      _isLoading = false;
-    });
-
     if (success) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'Marcado como llegado - ${serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}',
-          ),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
+      // Refrescar el servicio desde Firestore para obtener todos los datos actualizados
+      try {
+        final updatedService = await _serviceService.getServiceById(widget.service.id);
+        if (updatedService != null) {
+          setState(() {
+            _currentService = updatedService;
+            _isLoading = false;
+          });
+          if (!mounted) return;
+          await showAnimatedDialog(context, DialogType.success,
+              'Marcado como llegado - ${serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}');
+          if (!mounted) return;
+          Navigator.pop(context, true);
+        } else {
+          setState(() {
+            _isLoading = false;
+          });
+          if (!mounted) return;
+          showAnimatedDialog(
+              context, DialogType.error, 'Error al refrescar el servicio');
+        }
+      } catch (e) {
+        setState(() {
+          _isLoading = false;
+        });
+        if (!mounted) return;
+        showAnimatedDialog(
+            context, DialogType.error, 'Error al actualizar estado: $e');
+      }
     } else {
+      setState(() {
+        _isLoading = false;
+      });
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al actualizar estado'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAnimatedDialog(
+          context, DialogType.error, 'Error al actualizar estado');
     }
   }
 
-  Future<void> _completeService(
-    ServiceType serviceType, {
-    double? finalPrice,
-  }) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    bool success = await _serviceService.completeService(
-      widget.service.id,
-      serviceType,
-      finalPrice: finalPrice,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (success) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Servicio completado exitosamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al completar servicio'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
-  }
-
-  void _showCompleteServiceDialog() {
-    if (widget.service.serviceType == ServiceType.complete) {
-      // Para servicios completos, mostrar diálogo de precio
-      final priceController = TextEditingController();
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Completar Servicio'),
-            content: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Ingrese el valor del servicio completo:'),
-                const SizedBox(height: 16),
-                TextField(
-                  controller: priceController,
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(
-                    prefixText: '\$',
-                    hintText: 'Valor del servicio',
-                    border: OutlineInputBorder(),
-                  ),
+  void _showCompleteServiceDialogForComplete() {
+    final priceController = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Completar Servicio'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Ingrese el valor del servicio completo:'),
+              const SizedBox(height: 16),
+              TextField(
+                controller: priceController,
+                keyboardType: TextInputType.number,
+                decoration: const InputDecoration(
+                  prefixText: '\$',
+                  hintText: 'Valor del servicio',
+                  border: OutlineInputBorder(),
                 ),
-              ],
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancelar'),
             ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  if (priceController.text.isNotEmpty) {
-                    try {
-                      double finalPrice = double.parse(priceController.text);
-                      _completeService(
-                        ServiceType.complete,
-                        finalPrice: finalPrice,
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Ingrese un valor numérico válido'),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
-                    }
-                  } else {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text('Debe ingresar el valor del servicio'),
-                        backgroundColor: Colors.red,
-                      ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                if (priceController.text.isNotEmpty) {
+                  try {
+                    double finalPrice = double.parse(priceController.text);
+                    _completeService(
+                      ServiceType.complete,
+                      finalPrice: finalPrice,
                     );
+                  } catch (e) {
+                    showAnimatedDialog(context, DialogType.error,
+                        'Ingrese un valor numérico válido');
                   }
-                },
-                child: const Text('Completar'),
-              ),
-            ],
-          );
-        },
-      );
-    } else {
-      // Para servicios de revisión, mostrar diálogo normal
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: const Text('Completar Servicio'),
-            content: const Text('¿Estás seguro de completar este servicio?'),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                },
-                child: const Text('Cancelar'),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _completeService(ServiceType.revision);
-                },
-                child: const Text('Completar'),
-              ),
-            ],
-          );
-        },
-      );
-    }
+                } else {
+                  showAnimatedDialog(context, DialogType.error,
+                      'Debe ingresar el valor del servicio');
+                }
+              },
+              child: const Text('Completar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _showCompleteServiceDialogForRevision() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Completar Servicio'),
+          content: const Text('¿Estás seguro de completar este servicio?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+              },
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _completeService(ServiceType.revision);
+              },
+              child: const Text('Completar'),
+            ),
+          ],
+        );
+      },
+    );
   }
 
   Future<void> _callClient() async {
@@ -333,12 +310,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('No se puede realizar la llamada: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAnimatedDialog(
+          context, DialogType.error, 'No se puede realizar la llamada: $e');
     }
   }
 
@@ -352,12 +325,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       await launchUrl(mapsUri);
     } else {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('No se puede abrir el mapa'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAnimatedDialog(
+          context, DialogType.error, 'No se puede abrir el mapa');
     }
   }
 
@@ -392,32 +361,20 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
       if (result.type != ResultType.done) {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('Error al abrir la factura: ${result.message}'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAnimatedDialog(context, DialogType.error,
+            'Error al abrir la factura: ${result.message}');
       } else {
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Factura generada exitosamente'),
-            backgroundColor: Colors.green,
-          ),
-        );
+        showAnimatedDialog(
+            context, DialogType.success, 'Factura generada exitosamente');
       }
     } catch (e) {
       // Cerrar el diálogo de carga si está abierto
       if (mounted) Navigator.pop(context);
 
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Error al generar la factura: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAnimatedDialog(
+          context, DialogType.error, 'Error al generar la factura: $e');
     }
   }
 
@@ -541,10 +498,10 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               const SizedBox(height: 4),
               Chip(
                 label: Text(
-                  _getStatusText(widget.service.status),
+                  _getStatusText(_currentService.status),
                   style: const TextStyle(color: Colors.white),
                 ),
-                backgroundColor: _getStatusColor(widget.service.status),
+                backgroundColor: _getStatusColor(_currentService.status),
               ),
             ],
           ],
@@ -648,14 +605,14 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 12),
-            if (widget.service.serviceType != null) ...[
+            if (_currentService.serviceType != null) ...[
               Text(
-                'Tipo de servicio: ${widget.service.serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}',
+                'Tipo de servicio: ${_currentService.serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'}',
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
-                'Precio final: \$${widget.service.finalPrice.toStringAsFixed(0)}',
+                'Precio final: \$${_currentService.finalPrice.toStringAsFixed(0)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -663,7 +620,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                'Tu ganancia (70%): \$${widget.service.technicianCommission.toStringAsFixed(0)}',
+                'Tu ganancia (70%): \$${_currentService.technicianCommission.toStringAsFixed(0)}',
                 style: const TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.bold,
@@ -672,12 +629,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               ),
             ] else ...[
               Text(
-                'Precio base: \$${widget.service.basePrice.toStringAsFixed(0)}',
+                'Precio base: \$${_currentService.basePrice.toStringAsFixed(0)}',
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
               Text(
-                'Revisión: \$${widget.service.basePrice.toStringAsFixed(0)} (Tu ganancia: \$${(widget.service.basePrice * 0.7).toStringAsFixed(0)})',
+                'Revisión: \$${_currentService.basePrice.toStringAsFixed(0)} (Tu ganancia: ${(_currentService.basePrice * 0.7).toStringAsFixed(0)})',
                 style: const TextStyle(fontSize: 14, color: Colors.grey),
               ),
             ],
@@ -705,7 +662,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
     // Si no es admin, mostrar botones según el estado del servicio
     if (!_currentUser!.isAdmin) {
-      switch (widget.service.status) {
+      switch (_currentService.status) {
         case ServiceStatus.assigned:
           return SizedBox(
             width: double.infinity,
@@ -760,7 +717,13 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           return SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _isLoading ? null : _showCompleteServiceDialog,
+              onPressed: _isLoading ? null : () {
+                if (_currentService.serviceType == ServiceType.revision) {
+                  _showCompleteServiceDialogForRevision();
+                } else {
+                  _showCompleteServiceDialogForComplete();
+                }
+              },
               style: ElevatedButton.styleFrom(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 backgroundColor: Colors.green,
@@ -899,18 +862,16 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                     final technician = technicians[index];
                     return ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: technician.isBlocked
-                            ? Colors.red
-                            : Colors.green,
+                        backgroundColor:
+                            technician.isBlocked ? Colors.red : Colors.green,
                         child: Icon(Icons.person, color: Colors.white),
                       ),
                       title: Text(technician.name),
                       subtitle: Text(
                         technician.isBlocked ? 'Bloqueado' : 'Disponible',
                         style: TextStyle(
-                          color: technician.isBlocked
-                              ? Colors.red
-                              : Colors.green,
+                          color:
+                              technician.isBlocked ? Colors.red : Colors.green,
                         ),
                       ),
                       enabled: !technician.isBlocked,
@@ -935,40 +896,6 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         );
       },
     );
-  }
-
-  Future<void> _assignServiceToTechnician(String technicianId) async {
-    setState(() {
-      _isLoading = true;
-    });
-
-    bool success = await _serviceService.assignTechnician(
-      widget.service.id,
-      technicianId,
-    );
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (success) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Servicio asignado exitosamente'),
-          backgroundColor: Colors.green,
-        ),
-      );
-      Navigator.pop(context);
-    } else {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al asignar el servicio'),
-          backgroundColor: Colors.red,
-        ),
-      );
-    }
   }
 
   Color _getStatusColor(ServiceStatus status) {
@@ -1011,5 +938,112 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _completeService(ServiceType serviceType, {double? finalPrice}) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    bool success = false;
+
+    try {
+      if (serviceType == ServiceType.complete && finalPrice != null) {
+        success = await _serviceService.completeServiceWithPrice(
+          _currentService.id,
+          finalPrice,
+        );
+      } else {
+        success = await _serviceService.completeService(_currentService.id, serviceType);
+      }
+
+      if (success) {
+        final updatedService = await _serviceService.getServiceById(_currentService.id);
+        if (updatedService != null) {
+          setState(() {
+            _currentService = updatedService;
+          });
+          if (!mounted) return;
+          await showAnimatedDialog(context, DialogType.success, 'Servicio completado');
+          if (!mounted) return;
+          Navigator.pop(context, true);
+        }
+      } else {
+        if (!mounted) return;
+        showAnimatedDialog(context, DialogType.error, 'Error al completar el servicio');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showAnimatedDialog(context, DialogType.error, 'Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  void _showCompleteServiceDialog() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Confirmar completar servicio'),
+          content: const Text('¿Estás seguro de que deseas completar el servicio?'),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('Cancelar'),
+            ),
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _completeService(ServiceType.revision);
+              },
+              child: const Text('Completar'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _assignServiceToTechnician(String technicianId) async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      bool success = await _serviceService.assignService(
+        _currentService.id,
+        technicianId,
+      );
+
+      if (success) {
+        final updatedService = await _serviceService.getServiceById(_currentService.id);
+        if (updatedService != null) {
+          setState(() {
+            _currentService = updatedService;
+          });
+          if (!mounted) return;
+          await showAnimatedDialog(context, DialogType.success, 'Servicio asignado correctamente');
+        }
+      } else {
+        if (!mounted) return;
+        showAnimatedDialog(context, DialogType.error, 'Error al asignar el servicio');
+      }
+    } catch (e) {
+      if (!mounted) return;
+      showAnimatedDialog(context, DialogType.error, 'Error: $e');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 }

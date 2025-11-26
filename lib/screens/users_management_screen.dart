@@ -4,6 +4,7 @@ import '../models/user.dart' as app_user;
 import '../models/sede.dart';
 import '../services/auth_service.dart';
 import '../services/sede_service.dart';
+import '../utils/dialog_utils.dart';
 
 class UsersManagementScreen extends StatefulWidget {
   const UsersManagementScreen({super.key});
@@ -452,45 +453,12 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                     Navigator.pop(dialogContext); // Close the dialog
 
                     if (userId != null) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(Icons.check_circle, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text('Usuario creado exitosamente'),
-                            ],
-                          ),
-                          backgroundColor: Colors.green,
-                        ),
-                      );
+                      showAnimatedDialog(context, DialogType.success, 'Usuario creado exitosamente');
                     } else {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Row(
-                            children: [
-                              Icon(Icons.error, color: Colors.white),
-                              SizedBox(width: 8),
-                              Text('Error al crear usuario'),
-                            ],
-                          ),
-                          backgroundColor: Colors.red,
-                        ),
-                      );
+                      showAnimatedDialog(context, DialogType.error, 'Error al crear usuario');
                     }
                   } catch (e) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Row(
-                          children: [
-                            const Icon(Icons.error, color: Colors.white),
-                            const SizedBox(width: 8),
-                            Expanded(child: Text(e.toString())),
-                          ],
-                        ),
-                        backgroundColor: Colors.red,
-                      ),
-                    );
+                    showAnimatedDialog(context, DialogType.error, e.toString());
                   }
                 }
               },
@@ -576,25 +544,11 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                 );
                 
                 if (!mounted) return;
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: Row(
-                      children: [
-                        Icon(
-                          success ? Icons.check_circle : Icons.error,
-                          color: Colors.white,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          success
-                              ? 'Contraseña cambiada exitosamente'
-                              : 'Error al cambiar la contraseña',
-                        ),
-                      ],
-                    ),
-                    backgroundColor: success ? Colors.green : Colors.red,
-                  ),
-                );
+                if(success) {
+                  showAnimatedDialog(context, DialogType.success, 'Contraseña cambiada exitosamente');
+                } else {
+                  showAnimatedDialog(context, DialogType.error, 'Error al cambiar la contraseña');
+                }
               }
             },
             child: const Text('Cambiar'),
@@ -608,27 +562,11 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
     final success = await _authService.toggleUserStatus(userId, isBlocked);
     if (!mounted) return;
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Row(
-          children: [
-            Icon(
-              success ? Icons.check_circle : Icons.error,
-              color: Colors.white,
-            ),
-            const SizedBox(width: 8),
-            Text(
-              success
-                  ? isBlocked
-                      ? 'Usuario bloqueado exitosamente'
-                      : 'Usuario desbloqueado exitosamente'
-                  : 'Error al cambiar el estado del usuario',
-            ),
-          ],
-        ),
-        backgroundColor: success ? Colors.green : Colors.red,
-      ),
-    );
+    if (success) {
+      showAnimatedDialog(context, DialogType.success, isBlocked ? 'Usuario bloqueado exitosamente' : 'Usuario desbloqueado exitosamente');
+    } else {
+      showAnimatedDialog(context, DialogType.error, 'Error al cambiar el estado del usuario');
+    }
   }
 
   void _showDeleteConfirmation(BuildContext context, app_user.User user) {
@@ -649,25 +587,11 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
               
               final success = await _authService.deleteUser(user.id);
               
-              scaffoldMessenger.showSnackBar(
-                SnackBar(
-                  content: Row(
-                    children: [
-                      Icon(
-                        success ? Icons.check_circle : Icons.error,
-                        color: Colors.white,
-                      ),
-                      const SizedBox(width: 8),
-                      Text(
-                        success
-                            ? 'Usuario eliminado exitosamente'
-                            : 'Error al eliminar usuario',
-                      ),
-                    ],
-                  ),
-                  backgroundColor: success ? Colors.green : Colors.red,
-                ),
-              );
+              if (success) {
+                showAnimatedDialog(context, DialogType.success, 'Usuario eliminado exitosamente');
+              } else {
+                showAnimatedDialog(context, DialogType.error, 'Error al eliminar usuario');
+              }
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: const Text('Eliminar'),

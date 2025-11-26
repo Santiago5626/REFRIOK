@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../services/service_management_service.dart';
 import '../services/sede_service.dart';
 import '../models/sede.dart';
+import '../utils/dialog_utils.dart';
 
 class AddServiceScreen extends StatefulWidget {
   const AddServiceScreen({super.key});
@@ -379,51 +380,14 @@ class _AddServiceScreenState extends State<AddServiceScreen> {
       if (!mounted) return;
       
       if (serviceId != null) {
-        // Mostrar mensaje de éxito
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.check_circle, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Servicio creado exitosamente'),
-              ],
-            ),
-            backgroundColor: Colors.green,
-            duration: Duration(seconds: 3),
-          ),
-        );
-
-        // Regresar a la pantalla anterior
+        await showAnimatedDialog(context, DialogType.success, 'Servicio creado exitosamente');
         Navigator.pop(context, true);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Row(
-              children: [
-                Icon(Icons.error, color: Colors.white),
-                SizedBox(width: 8),
-                Text('Error al crear servicio'),
-              ],
-            ),
-            backgroundColor: Colors.red,
-          ),
-        );
+        showAnimatedDialog(context, DialogType.error, 'Error al crear servicio');
       }
     } catch (e) {
       if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Row(
-            children: [
-              const Icon(Icons.error, color: Colors.white),
-              const SizedBox(width: 8),
-              Expanded(child: Text('Error al crear servicio: $e')),
-            ],
-          ),
-          backgroundColor: Colors.red,
-        ),
-      );
+      showAnimatedDialog(context, DialogType.error, e.toString());
     } finally {
       if (mounted) {
         setState(() {
