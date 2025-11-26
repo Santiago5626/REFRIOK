@@ -23,19 +23,31 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Gestión de Pagos'),
-        backgroundColor: Colors.transparent,
-        foregroundColor: AppTheme.textPrimary,
+        title: const Text(
+          'Gestión de Pagos',
+          style: TextStyle(
+            color: Color(0xFF172B4D),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         elevation: 0,
         centerTitle: false,
+        iconTheme: const IconThemeData(color: Color(0xFF172B4D)),
         actions: [
-          // Botón temporal para arreglar campo isPaid
           IconButton(
-            icon: const Icon(Icons.build_circle_outlined, color: AppTheme.primaryBlue),
+            icon: const Icon(Icons.build_circle_outlined, color: Color(0xFF0052CC)),
             tooltip: 'Arreglar campo isPaid',
             onPressed: _fixIsPaidField,
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xFFF4F5F7),
+            ),
           ),
+          const SizedBox(width: 16),
         ],
       ),
       body: StreamBuilder<List<Service>>(
@@ -63,11 +75,34 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.payments_outlined, size: 64, color: Colors.grey[300]),
-                  const SizedBox(height: 16),
-                  Text(
-                    'No hay servicios completados',
-                    style: TextStyle(fontSize: 18, color: Colors.grey[500]),
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0052CC).withValues(alpha: 0.05),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.payments_outlined,
+                      size: 64,
+                      color: const Color(0xFF0052CC).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
+                    'No hay pagos pendientes',
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF172B4D),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Todos los servicios están al día',
+                    style: TextStyle(
+                      fontSize: 16,
+                      color: Color(0xFF5E6C84),
+                    ),
                   ),
                 ],
               ),
@@ -75,7 +110,7 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
           }
 
           return ListView.builder(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(20),
             itemCount: completedServices.length,
             itemBuilder: (context, index) {
               final service = completedServices[index];
@@ -89,202 +124,220 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
 
   Widget _buildServiceCard(Service service) {
     final bool isPaid = service.isPaid;
-    final Color statusColor = isPaid ? AppTheme.successText : AppTheme.warningText;
+    final Color statusColor = isPaid ? const Color(0xFF36B37E) : const Color(0xFFFFAB00);
     final IconData statusIcon = isPaid ? Icons.check_circle : Icons.pending;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 16),
+      margin: const EdgeInsets.only(bottom: 20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF172B4D).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFF172B4D).withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
-      child: Padding(
-        padding: const EdgeInsets.all(20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Header con título y estado de pago
-            Row(
+      child: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Container(
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                  child: const Icon(Icons.receipt_long, color: AppTheme.primaryBlue),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        service.title,
-                        style: const TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
-                        ),
-                      ),
-                      Text(
-                        service.clientName,
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 12,
-                    vertical: 6,
-                  ),
-                  decoration: BoxDecoration(
-                    color: statusColor.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(20),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(statusIcon, size: 16, color: statusColor),
-                      const SizedBox(width: 4),
-                      Text(
-                        isPaid ? 'PAGADO' : 'PENDIENTE',
-                        style: TextStyle(
-                          color: statusColor,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 12,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
-
-            // Información financiera
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[50],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: Colors.grey[200]!),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildFinancialItem(
-                    'Precio Total',
-                    service.finalPrice,
-                    AppTheme.textPrimary,
-                  ),
-                  Container(width: 1, height: 40, color: Colors.grey[300]),
-                  _buildFinancialItem(
-                    'Admin (30%)',
-                    service.adminCommission,
-                    AppTheme.primaryBlue,
-                  ),
-                  Container(width: 1, height: 40, color: Colors.grey[300]),
-                  _buildFinancialItem(
-                    'Técnico (70%)',
-                    service.technicianCommission,
-                    Colors.orange,
-                  ),
-                ],
-              ),
-            ),
-            
-            const SizedBox(height: 16),
-            
-            // Detalles adicionales
-            Row(
-              children: [
-                Icon(Icons.location_on_outlined, size: 16, color: Colors.grey[600]),
-                const SizedBox(width: 4),
-                Expanded(
-                  child: Text(
-                    service.location,
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-                if (service.completedAt != null) ...[
-                  const SizedBox(width: 16),
-                  Icon(Icons.calendar_today_outlined, size: 16, color: Colors.grey[600]),
-                  const SizedBox(width: 4),
-                  Text(
-                    DateFormat('dd/MM HH:mm').format(service.completedAt!),
-                    style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                  ),
-                ],
-              ],
-            ),
-
-            // Botón de acción
-            if (!isPaid) ...[
-              const SizedBox(height: 20),
-              SizedBox(
-                width: double.infinity,
-                child: ElevatedButton.icon(
-                  onPressed: () => _markAsPaid(service),
-                  icon: const Icon(Icons.check_circle_outline),
-                  label: const Text('Confirmar Pago de Comisión'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.successText,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
-                ),
-              ),
-            ],
-
-            // Advertencia de bloqueo automático
-            if (!isPaid && service.shouldBlockTechnician()) ...[
-              const SizedBox(height: 12),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(
-                  color: AppTheme.errorPastel,
-                  borderRadius: BorderRadius.circular(8),
-                  border: Border.all(color: AppTheme.errorText.withValues(alpha: 0.3)),
-                ),
-                child: Row(
+                // Header con título y estado
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Icon(Icons.warning_amber_rounded, color: AppTheme.errorText, size: 20),
-                    const SizedBox(width: 8),
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFF0052CC).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: const Icon(Icons.receipt_long_rounded, color: Color(0xFF0052CC)),
+                    ),
+                    const SizedBox(width: 16),
                     Expanded(
-                      child: Text(
-                        'Bloqueo automático a las 10 PM si no se paga.',
-                        style: TextStyle(
-                          color: AppTheme.errorText,
-                          fontSize: 12,
-                          fontWeight: FontWeight.w600,
-                        ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            service.title,
+                            style: const TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
+                              color: Color(0xFF172B4D),
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            service.clientName,
+                            style: const TextStyle(
+                              fontSize: 14,
+                              color: Color(0xFF5E6C84),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(statusIcon, size: 14, color: statusColor),
+                          const SizedBox(width: 6),
+                          Text(
+                            isPaid ? 'PAGADO' : 'PENDIENTE',
+                            style: TextStyle(
+                              color: statusColor,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 12,
+                            ),
+                          ),
+                        ],
                       ),
                     ),
                   ],
                 ),
+                
+                const SizedBox(height: 20),
+
+                // Información financiera
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF4F5F7),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      _buildFinancialItem(
+                        'Total',
+                        service.finalPrice,
+                        const Color(0xFF172B4D),
+                      ),
+                      Container(width: 1, height: 32, color: const Color(0xFFDFE1E6)),
+                      _buildFinancialItem(
+                        'Admin (30%)',
+                        service.adminCommission,
+                        const Color(0xFF0052CC),
+                      ),
+                      Container(width: 1, height: 32, color: const Color(0xFFDFE1E6)),
+                      _buildFinancialItem(
+                        'Técnico (70%)',
+                        service.technicianCommission,
+                        const Color(0xFF36B37E),
+                      ),
+                    ],
+                  ),
+                ),
+                
+                const SizedBox(height: 20),
+                
+                // Detalles adicionales
+                Row(
+                  children: [
+                    const Icon(Icons.location_on_outlined, size: 16, color: Color(0xFF5E6C84)),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        service.location,
+                        style: const TextStyle(color: Color(0xFF5E6C84), fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                    if (service.completedAt != null) ...[
+                      const SizedBox(width: 16),
+                      const Icon(Icons.calendar_today_outlined, size: 16, color: Color(0xFF5E6C84)),
+                      const SizedBox(width: 6),
+                      Text(
+                        DateFormat('dd/MM HH:mm').format(service.completedAt!),
+                        style: const TextStyle(color: Color(0xFF5E6C84), fontSize: 13),
+                      ),
+                    ],
+                  ],
+                ),
+              ],
+            ),
+          ),
+
+          // Botón de acción (si no está pagado)
+          if (!isPaid)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: const BoxDecoration(
+                border: Border(
+                  top: BorderSide(color: Color(0xFFEBECF0)),
+                ),
               ),
-            ],
-          ],
-        ),
+              child: Column(
+                children: [
+                  if (service.shouldBlockTechnician())
+                    Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: const Color(0xFFFF5630).withValues(alpha: 0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(Icons.warning_amber_rounded, color: Color(0xFFFF5630), size: 20),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Text(
+                              'Bloqueo automático a las 10 PM si no se paga.',
+                              style: TextStyle(
+                                color: Color(0xFFFF5630),
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _markAsPaid(service),
+                      icon: const Icon(Icons.check_circle_outline, size: 20),
+                      label: const Text('Confirmar Pago de Comisión'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF36B37E),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        textStyle: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
       ),
     );
   }
@@ -295,10 +348,10 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: Colors.grey[600],
+          style: const TextStyle(
+            color: Color(0xFF5E6C84),
             fontSize: 11,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 4),
@@ -315,32 +368,41 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
   }
 
   Future<void> _markAsPaid(Service service) async {
-    // Mostrar diálogo de confirmación
     final bool? confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Confirmar Pago'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('¿Confirmas que has recibido el pago de la comisión para el servicio "${service.title}"?'),
-            const SizedBox(height: 16),
+            Text(
+              '¿Confirmas que has recibido el pago de la comisión para el servicio "${service.title}"?',
+              style: const TextStyle(color: Color(0xFF172B4D)),
+            ),
+            const SizedBox(height: 20),
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                color: const Color(0xFF0052CC).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Comisión a recibir:'),
+                  const Text(
+                    'Comisión a recibir:',
+                    style: TextStyle(
+                      color: Color(0xFF172B4D),
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
                   Text(
                     _currencyFormat.format(service.adminCommission),
                     style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: AppTheme.primaryBlue,
+                      color: Color(0xFF0052CC),
                       fontSize: 18,
                     ),
                   ),
@@ -352,13 +414,14 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF5E6C84))),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(context).pop(true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.successText,
+              backgroundColor: const Color(0xFF36B37E),
               foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
             child: const Text('Confirmar Pago'),
           ),
@@ -368,18 +431,16 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
 
     if (confirmed == true) {
       try {
-        // Mostrar indicador de carga
         showDialog(
           context: context,
           barrierDismissible: false,
           builder: (context) => const Center(
-            child: CircularProgressIndicator(),
+            child: CircularProgressIndicator(color: Color(0xFF0052CC)),
           ),
         );
 
         final success = await _serviceService.markServiceAsPaid(service.id);
 
-        // Cerrar indicador de carga
         if (mounted) Navigator.of(context).pop();
 
         if (success) {
@@ -387,7 +448,7 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Servicio marcado como pagado exitosamente'),
-                backgroundColor: Colors.green,
+                backgroundColor: Color(0xFF36B37E),
                 behavior: SnackBarBehavior.floating,
               ),
             );
@@ -397,21 +458,20 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
                 content: Text('Error al marcar el servicio como pagado'),
-                backgroundColor: Colors.red,
+                backgroundColor: Color(0xFFFF5630),
                 behavior: SnackBarBehavior.floating,
               ),
             );
           }
         }
       } catch (e) {
-        // Cerrar indicador de carga si está abierto
         if (mounted) Navigator.of(context).pop();
         
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error: $e'),
-              backgroundColor: Colors.red,
+              backgroundColor: const Color(0xFFFF5630),
               behavior: SnackBarBehavior.floating,
             ),
           );
@@ -422,7 +482,6 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
 
   Future<void> _fixIsPaidField() async {
     try {
-      // Mostrar indicador de carga
       showDialog(
         context: context,
         barrierDismissible: false,
@@ -430,7 +489,7 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(),
+              CircularProgressIndicator(color: Color(0xFF0052CC)),
               SizedBox(height: 16),
               Text('Arreglando campo isPaid...'),
             ],
@@ -438,32 +497,28 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
         ),
       );
 
-      // Ejecutar fix
       final fix = FixIsPaidField();
       await fix.fixServices();
 
-      // Cerrar indicador de carga
       if (mounted) Navigator.of(context).pop();
 
-      // Mostrar resultado
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
             content: Text('Campo isPaid actualizado exitosamente'),
-            backgroundColor: Colors.green,
+            backgroundColor: Color(0xFF36B37E),
             duration: Duration(seconds: 2),
           ),
         );
       }
     } catch (e) {
-      // Cerrar indicador de carga si está abierto
       if (mounted) Navigator.of(context).pop();
       
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFFF5630),
           ),
         );
       }

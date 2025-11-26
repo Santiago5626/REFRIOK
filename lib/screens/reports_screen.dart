@@ -33,19 +33,58 @@ class _ReportsScreenState extends State<ReportsScreen>
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Reportes'),
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.white,
-          unselectedLabelColor: Colors.white70,
-          indicatorColor: Colors.white,
-          indicatorWeight: 3,
-          tabs: const [
-            Tab(text: 'General', icon: Icon(Icons.analytics_outlined)),
-            Tab(text: 'Sedes', icon: Icon(Icons.location_city_outlined)),
-            Tab(text: 'Ganancias', icon: Icon(Icons.attach_money)),
-          ],
+        title: const Text(
+          'Reportes y Estadísticas',
+          style: TextStyle(
+            color: Color(0xFF172B4D),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF172B4D)),
+          onPressed: () => Navigator.pop(context),
+        ),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(96),
+          child: Container(
+            margin: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            decoration: BoxDecoration(
+              color: const Color(0xFFF4F5F7),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: TabBar(
+              controller: _tabController,
+              indicator: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(10),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.05),
+                    blurRadius: 4,
+                    offset: const Offset(0, 2),
+                  ),
+                ],
+              ),
+              indicatorSize: TabBarIndicatorSize.tab,
+              labelColor: const Color(0xFF0052CC),
+              unselectedLabelColor: const Color(0xFF5E6C84),
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+              dividerColor: Colors.transparent,
+              padding: const EdgeInsets.all(4),
+              tabs: const [
+                Tab(text: 'General', icon: Icon(Icons.analytics_outlined, size: 20)),
+                Tab(text: 'Sedes', icon: Icon(Icons.location_city_outlined, size: 20)),
+                Tab(text: 'Finanzas', icon: Icon(Icons.attach_money, size: 20)),
+              ],
+            ),
+          ),
         ),
       ),
       body: Column(
@@ -68,14 +107,16 @@ class _ReportsScreenState extends State<ReportsScreen>
 
   Widget _buildPeriodSelector() {
     return Container(
+      margin: const EdgeInsets.fromLTRB(20, 4, 20, 8),
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 4,
-            offset: const Offset(0, 2),
+            color: const Color(0xFF172B4D).withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
           ),
         ],
       ),
@@ -84,27 +125,39 @@ class _ReportsScreenState extends State<ReportsScreen>
           Container(
             padding: const EdgeInsets.all(8),
             decoration: BoxDecoration(
-              color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+              color: const Color(0xFF0052CC).withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(8),
             ),
-            child: const Icon(Icons.calendar_today, color: AppTheme.primaryBlue, size: 20),
+            child: const Icon(Icons.calendar_today, color: Color(0xFF0052CC), size: 20),
           ),
           const SizedBox(width: 12),
-          const Text('Período:',
-              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+          const Text(
+            'Período:',
+            style: TextStyle(
+              fontWeight: FontWeight.bold, 
+              fontSize: 16,
+              color: Color(0xFF172B4D),
+            ),
+          ),
           const SizedBox(width: 16),
           Expanded(
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               decoration: BoxDecoration(
-                color: Colors.grey[100],
+                color: const Color(0xFFF4F5F7),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _selectedPeriod,
                   isExpanded: true,
-                  icon: const Icon(Icons.keyboard_arrow_down),
+                  icon: const Icon(Icons.keyboard_arrow_down, color: Color(0xFF5E6C84)),
+                  style: const TextStyle(
+                    color: Color(0xFF172B4D),
+                    fontWeight: FontWeight.w500,
+                    fontSize: 14,
+                  ),
+                  dropdownColor: Colors.white,
                   items: const [
                     DropdownMenuItem(value: 'today', child: Text('Hoy')),
                     DropdownMenuItem(value: 'week', child: Text('Esta Semana')),
@@ -130,7 +183,7 @@ class _ReportsScreenState extends State<ReportsScreen>
       stream: _getServicesStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF0052CC)));
         }
 
         if (snapshot.hasError) {
@@ -141,7 +194,7 @@ class _ReportsScreenState extends State<ReportsScreen>
         final stats = _calculateGeneralStats(services);
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -151,12 +204,12 @@ class _ReportsScreenState extends State<ReportsScreen>
                 children: [
                   Expanded(
                     child: _buildStatsCard(
-                        'Total', stats['total'].toString(), Icons.work, AppTheme.primaryBlue),
+                        'Total', stats['total'].toString(), Icons.work_outline, const Color(0xFF0052CC)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: _buildStatsCard('Completados', stats['completed'].toString(),
-                        Icons.check_circle, AppTheme.successText),
+                        Icons.check_circle_outline, const Color(0xFF36B37E)),
                   ),
                 ],
               ),
@@ -165,19 +218,19 @@ class _ReportsScreenState extends State<ReportsScreen>
                 children: [
                   Expanded(
                     child: _buildStatsCard('Pendientes', stats['pending'].toString(),
-                        Icons.pending, AppTheme.warningText),
+                        Icons.pending_outlined, const Color(0xFFFFAB00)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: _buildStatsCard('En Progreso', stats['inProgress'].toString(),
-                        Icons.build, Colors.amber[800]!),
+                        Icons.build_circle_outlined, const Color(0xFF6554C0)),
                   ),
                 ],
               ),
               const SizedBox(height: 16),
               _buildStatsCard('Cancelados', stats['cancelled'].toString(),
-                  Icons.cancel, AppTheme.errorText),
-              const SizedBox(height: 24),
+                  Icons.cancel_outlined, const Color(0xFFFF5630)),
+              const SizedBox(height: 30),
               _buildSectionTitle('Distribución por Tipo'),
               const SizedBox(height: 16),
               _buildServiceTypeChart(services),
@@ -193,7 +246,7 @@ class _ReportsScreenState extends State<ReportsScreen>
       stream: _getServicesStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF0052CC)));
         }
 
         final services = snapshot.data?.docs ?? [];
@@ -207,14 +260,14 @@ class _ReportsScreenState extends State<ReportsScreen>
       stream: _getServicesStream(),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF0052CC)));
         }
 
         final services = snapshot.data?.docs ?? [];
         final earnings = _calculateEarnings(services);
 
         return SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -224,7 +277,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                 'Ganancias Totales',
                 '\$${earnings['total'].toStringAsFixed(0)}',
                 Icons.attach_money,
-                Colors.green,
+                const Color(0xFF36B37E),
                 isLarge: true,
               ),
               const SizedBox(height: 24),
@@ -234,8 +287,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                     child: _buildStatsCard(
                       'Comisión Admin',
                       '\$${earnings['admin'].toStringAsFixed(0)}',
-                      Icons.admin_panel_settings,
-                      AppTheme.primaryBlue,
+                      Icons.admin_panel_settings_outlined,
+                      const Color(0xFF0052CC),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -243,13 +296,13 @@ class _ReportsScreenState extends State<ReportsScreen>
                     child: _buildStatsCard(
                       'Comisión Técnicos',
                       '\$${earnings['technicians'].toStringAsFixed(0)}',
-                      Icons.engineering,
-                      Colors.orange,
+                      Icons.engineering_outlined,
+                      const Color(0xFFFFAB00),
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const SizedBox(height: 30),
               _buildSectionTitle('Estado de Pagos'),
               const SizedBox(height: 16),
               Row(
@@ -258,8 +311,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                     child: _buildStatsCard(
                       'Pagados',
                       earnings['paid'].toString(),
-                      Icons.paid,
-                      Colors.teal,
+                      Icons.paid_outlined,
+                      const Color(0xFF36B37E),
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -267,8 +320,8 @@ class _ReportsScreenState extends State<ReportsScreen>
                     child: _buildStatsCard(
                       'Pendientes',
                       earnings['unpaid'].toString(),
-                      Icons.payment,
-                      AppTheme.errorText,
+                      Icons.payment_outlined,
+                      const Color(0xFFFF5630),
                     ),
                   ),
                 ],
@@ -286,7 +339,7 @@ class _ReportsScreenState extends State<ReportsScreen>
       style: const TextStyle(
         fontSize: 18,
         fontWeight: FontWeight.bold,
-        color: AppTheme.textPrimary,
+        color: Color(0xFF172B4D),
       ),
     );
   }
@@ -297,12 +350,17 @@ class _ReportsScreenState extends State<ReportsScreen>
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF172B4D).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFF172B4D).withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
           ),
         ],
       ),
@@ -323,15 +381,15 @@ class _ReportsScreenState extends State<ReportsScreen>
             style: TextStyle(
               fontSize: isLarge ? 32 : 24,
               fontWeight: FontWeight.bold,
-              color: AppTheme.textPrimary,
+              color: const Color(0xFF172B4D),
             ),
           ),
           const SizedBox(height: 4),
           Text(
             title,
-            style: TextStyle(
+            style: const TextStyle(
               fontSize: 14,
-              color: Colors.grey[600],
+              color: Color(0xFF5E6C84),
               fontWeight: FontWeight.w500,
             ),
           ),
@@ -354,26 +412,32 @@ class _ReportsScreenState extends State<ReportsScreen>
     final undefinedCount = services.length - revisionCount - completeCount;
 
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: const Color(0xFF172B4D).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          _buildTypeRow('Revisiones', revisionCount, AppTheme.primaryBlue),
-          const Divider(height: 24),
-          _buildTypeRow('Servicios Completos', completeCount, AppTheme.successText),
-          const Divider(height: 24),
-          _buildTypeRow('Sin Definir', undefinedCount, Colors.grey),
+          _buildTypeRow('Revisiones', revisionCount, const Color(0xFF0052CC)),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(height: 1, color: Color(0xFFEBECF0)),
+          ),
+          _buildTypeRow('Servicios Completos', completeCount, const Color(0xFF36B37E)),
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Divider(height: 1, color: Color(0xFFEBECF0)),
+          ),
+          _buildTypeRow('Sin Definir', undefinedCount, const Color(0xFF5E6C84)),
         ],
       ),
     );
@@ -388,23 +452,39 @@ class _ReportsScreenState extends State<ReportsScreen>
           decoration: BoxDecoration(
             color: color,
             shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.4),
+                blurRadius: 4,
+                offset: const Offset(0, 2),
+              ),
+            ],
           ),
         ),
-        const SizedBox(width: 12),
+        const SizedBox(width: 16),
         Expanded(
           child: Text(
             label,
             style: const TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w500,
+              color: Color(0xFF172B4D),
             ),
           ),
         ),
-        Text(
-          count.toString(),
-          style: const TextStyle(
-            fontSize: 18,
-            fontWeight: FontWeight.bold,
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+          decoration: BoxDecoration(
+            color: const Color(0xFFF4F5F7),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Text(
+            count.toString(),
+            style: TextStyle(
+              fontSize: 16,
+              fontWeight: FontWeight.bold,
+              color: color,
+            ),
           ),
         ),
       ],
@@ -416,7 +496,7 @@ class _ReportsScreenState extends State<ReportsScreen>
       stream: _sedeService.getSedesActivas(),
       builder: (context, sedeSnapshot) {
         if (sedeSnapshot.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator(color: Color(0xFF0052CC)));
         }
 
         final sedes = sedeSnapshot.data ?? [];
@@ -452,23 +532,23 @@ class _ReportsScreenState extends State<ReportsScreen>
         }
 
         return ListView.builder(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(20),
           itemCount: sedeStats.length,
           itemBuilder: (context, index) {
             final sedeId = sedeStats.keys.elementAt(index);
             final stats = sedeStats[sedeId]!;
 
             return Container(
-              margin: const EdgeInsets.only(bottom: 16),
-              padding: const EdgeInsets.all(20),
+              margin: const EdgeInsets.only(bottom: 20),
+              padding: const EdgeInsets.all(24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(20),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, 4),
+                    color: const Color(0xFF172B4D).withValues(alpha: 0.06),
+                    blurRadius: 20,
+                    offset: const Offset(0, 8),
                   ),
                 ],
               ),
@@ -478,25 +558,25 @@ class _ReportsScreenState extends State<ReportsScreen>
                   Row(
                     children: [
                       Container(
-                        padding: const EdgeInsets.all(8),
+                        padding: const EdgeInsets.all(10),
                         decoration: BoxDecoration(
-                          color: AppTheme.primaryBlue.withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(8),
+                          color: const Color(0xFF0052CC).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
                         ),
-                        child: const Icon(Icons.location_city, color: AppTheme.primaryBlue),
+                        child: const Icon(Icons.location_city, color: Color(0xFF0052CC)),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       Text(
                         stats['name'],
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
-                          color: AppTheme.textPrimary,
+                          color: Color(0xFF172B4D),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 24),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
@@ -504,19 +584,21 @@ class _ReportsScreenState extends State<ReportsScreen>
                         'Total',
                         stats['total'].toString(),
                         Icons.work_outline,
-                        Colors.blue,
+                        const Color(0xFF0052CC),
                       ),
+                      Container(width: 1, height: 40, color: const Color(0xFFEBECF0)),
                       _buildSedeStatItem(
                         'Completados',
                         stats['completed'].toString(),
                         Icons.check_circle_outline,
-                        Colors.green,
+                        const Color(0xFF36B37E),
                       ),
+                      Container(width: 1, height: 40, color: const Color(0xFFEBECF0)),
                       _buildSedeStatItem(
                         'Ganancias',
                         '\$${stats['earnings'].toStringAsFixed(0)}',
                         Icons.attach_money,
-                        Colors.orange,
+                        const Color(0xFFFFAB00),
                       ),
                     ],
                   ),
@@ -540,13 +622,15 @@ class _ReportsScreenState extends State<ReportsScreen>
           style: const TextStyle(
             fontSize: 20,
             fontWeight: FontWeight.bold,
+            color: Color(0xFF172B4D),
           ),
         ),
         Text(
           label,
-          style: TextStyle(
+          style: const TextStyle(
             fontSize: 12,
-            color: Colors.grey[600],
+            color: Color(0xFF5E6C84),
+            fontWeight: FontWeight.w500,
           ),
         ),
       ],

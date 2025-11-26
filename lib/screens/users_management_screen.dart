@@ -20,22 +20,38 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        backgroundColor: Colors.transparent,
+        title: const Text(
+          'Gestión de Usuarios',
+          style: TextStyle(
+            color: Color(0xFF172B4D),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
         elevation: 0,
+        centerTitle: false,
+        iconTheme: const IconThemeData(color: Color(0xFF172B4D)),
         actions: [
           IconButton(
             onPressed: () => _showCreateUserDialog(context),
-            icon: const Icon(Icons.person_add),
+            icon: const Icon(Icons.person_add_outlined, color: Color(0xFF0052CC)),
             tooltip: 'Agregar Usuario',
+            style: IconButton.styleFrom(
+              backgroundColor: const Color(0xFFF4F5F7),
+            ),
           ),
+          const SizedBox(width: 16),
         ],
       ),
       body: StreamBuilder<List<app_user.User>>(
         stream: _getUsersStream(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CircularProgressIndicator(color: Color(0xFF0052CC)));
           }
 
           if (snapshot.hasError) {
@@ -45,15 +61,30 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
           List<app_user.User> users = snapshot.data ?? [];
 
           if (users.isEmpty) {
-            return const Center(
+            return Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.people_outline, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
+                  Container(
+                    padding: const EdgeInsets.all(24),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF0052CC).withValues(alpha: 0.05),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.people_outline,
+                      size: 64,
+                      color: const Color(0xFF0052CC).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text(
                     'No hay usuarios registrados',
-                    style: TextStyle(fontSize: 18, color: Colors.grey),
+                    style: TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF172B4D),
+                    ),
                   ),
                 ],
               ),
@@ -61,11 +92,12 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
           }
 
           return RefreshIndicator(
+            color: const Color(0xFF0052CC),
             onRefresh: () async {
               setState(() {});
             },
             child: ListView.builder(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               itemCount: users.length,
               itemBuilder: (context, index) {
                 final user = users[index];
@@ -77,31 +109,59 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
       ),
       floatingActionButton: FloatingActionButton(
         onPressed: () => _showCreateUserDialog(context),
-        backgroundColor: Colors.blue,
+        backgroundColor: const Color(0xFF0052CC),
         foregroundColor: Colors.white,
+        elevation: 4,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         child: const Icon(Icons.person_add),
       ),
     );
   }
 
   Widget _buildUserCard(app_user.User user) {
-    return Card(
+    return Container(
       margin: const EdgeInsets.only(bottom: 16),
-      elevation: 2,
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF172B4D).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFF172B4D).withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
       child: Padding(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  radius: 30,
-                  backgroundColor: user.isAdmin ? Colors.blue : Colors.green,
-                  child: Icon(
-                    user.isAdmin ? Icons.admin_panel_settings : Icons.person,
-                    color: Colors.white,
-                    size: 30,
+                Container(
+                  width: 60,
+                  height: 60,
+                  decoration: BoxDecoration(
+                    color: user.isAdmin 
+                        ? const Color(0xFF0052CC).withValues(alpha: 0.1) 
+                        : const Color(0xFF36B37E).withValues(alpha: 0.1),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Center(
+                    child: Text(
+                      user.name.isNotEmpty ? user.name.substring(0, 1).toUpperCase() : '?',
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold,
+                        color: user.isAdmin ? const Color(0xFF0052CC) : const Color(0xFF36B37E),
+                      ),
+                    ),
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -114,49 +174,28 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                         style: const TextStyle(
                           fontSize: 18,
                           fontWeight: FontWeight.bold,
+                          color: Color(0xFF172B4D),
                         ),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         user.email,
-                        style: TextStyle(
+                        style: const TextStyle(
                           fontSize: 14,
-                          color: Colors.grey[600],
+                          color: Color(0xFF5E6C84),
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 8),
                       Row(
                         children: [
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: user.isAdmin ? Colors.blue.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              user.isAdmin ? 'Administrador' : 'Técnico',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: user.isAdmin ? Colors.blue : Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          _buildBadge(
+                            user.isAdmin ? 'Administrador' : 'Técnico',
+                            user.isAdmin ? const Color(0xFF0052CC) : const Color(0xFF36B37E),
                           ),
                           const SizedBox(width: 8),
-                          Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: user.isBlocked ? Colors.red.withValues(alpha: 0.1) : Colors.green.withValues(alpha: 0.1),
-                              borderRadius: BorderRadius.circular(12),
-                            ),
-                            child: Text(
-                              user.isBlocked ? 'Bloqueado' : 'Activo',
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: user.isBlocked ? Colors.red : Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
+                          _buildBadge(
+                            user.isBlocked ? 'Bloqueado' : 'Activo',
+                            user.isBlocked ? const Color(0xFFFF5630) : const Color(0xFF36B37E),
                           ),
                         ],
                       ),
@@ -164,11 +203,16 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                   ),
                 ),
                 PopupMenuButton(
+                  icon: const Icon(Icons.more_vert, color: Color(0xFF5E6C84)),
+                  color: Colors.white,
+                  surfaceTintColor: Colors.white,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   itemBuilder: (context) => [
                     PopupMenuItem(
                       child: ListTile(
-                        leading: const Icon(Icons.password, color: Colors.blue),
-                        title: const Text('Restablecer Contraseña'),
+                        leading: const Icon(Icons.password, color: Color(0xFF0052CC)),
+                        title: const Text('Restablecer Contraseña', style: TextStyle(fontSize: 14)),
+                        contentPadding: EdgeInsets.zero,
                         onTap: () {
                           Navigator.pop(context);
                           _resetPassword(user.email);
@@ -178,10 +222,14 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                     PopupMenuItem(
                       child: ListTile(
                         leading: Icon(
-                          user.isBlocked ? Icons.lock_open : Icons.lock,
-                          color: user.isBlocked ? Colors.green : Colors.orange,
+                          user.isBlocked ? Icons.lock_open : Icons.lock_outline,
+                          color: user.isBlocked ? const Color(0xFF36B37E) : const Color(0xFFFFAB00),
                         ),
-                        title: Text(user.isBlocked ? 'Desbloquear' : 'Bloquear'),
+                        title: Text(
+                          user.isBlocked ? 'Desbloquear' : 'Bloquear',
+                          style: const TextStyle(fontSize: 14),
+                        ),
+                        contentPadding: EdgeInsets.zero,
                         onTap: () {
                           Navigator.pop(context);
                           _toggleUserStatus(user.id, !user.isBlocked);
@@ -191,8 +239,9 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                     if (!user.isAdmin)
                       PopupMenuItem(
                         child: ListTile(
-                          leading: const Icon(Icons.delete, color: Colors.red),
-                          title: const Text('Eliminar', style: TextStyle(color: Colors.red)),
+                          leading: const Icon(Icons.delete_outline, color: Color(0xFFFF5630)),
+                          title: const Text('Eliminar', style: TextStyle(color: Color(0xFFFF5630), fontSize: 14)),
+                          contentPadding: EdgeInsets.zero,
                           onTap: () {
                             Navigator.pop(context);
                             _showDeleteConfirmation(context, user);
@@ -204,32 +253,34 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
               ],
             ),
             if (!user.isAdmin) ...[
-              const SizedBox(height: 12),
-              const Divider(),
-              const SizedBox(height: 8),
+              const SizedBox(height: 16),
+              const Divider(height: 1, color: Color(0xFFEBECF0)),
+              const SizedBox(height: 16),
               Row(
                 children: [
-                  Icon(Icons.work, size: 16, color: Colors.grey[600]),
+                  const Icon(Icons.work_outline, size: 16, color: Color(0xFF5E6C84)),
                   const SizedBox(width: 8),
                   Text(
                     'Servicios completados: ${user.completedServices}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: Color(0xFF5E6C84),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 8),
               Row(
                 children: [
-                  Icon(Icons.attach_money, size: 16, color: Colors.grey[600]),
+                  const Icon(Icons.attach_money, size: 16, color: Color(0xFF5E6C84)),
                   const SizedBox(width: 8),
                   Text(
                     'Ganancias totales: \$${user.totalEarnings.toStringAsFixed(0)}',
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontSize: 14,
-                      color: Colors.grey[600],
+                      color: Color(0xFF5E6C84),
+                      fontWeight: FontWeight.w500,
                     ),
                   ),
                 ],
@@ -241,12 +292,29 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
     );
   }
 
+  Widget _buildBadge(String text, Color color) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Text(
+        text,
+        style: TextStyle(
+          fontSize: 12,
+          color: color,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
+
   Stream<List<app_user.User>> _getUsersStream() {
     return FirebaseFirestore.instance
         .collection('users')
         .snapshots()
         .map((snapshot) {
-          // Crear un mapa para evitar duplicados por email
           Map<String, app_user.User> uniqueUsers = {};
           
           for (var doc in snapshot.docs) {
@@ -255,12 +323,9 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
               ...doc.data(),
             };
             final user = app_user.User.fromMap(userData);
-            
-            // Usar email como clave única para evitar duplicados
             uniqueUsers[user.email] = user;
           }
           
-          // Convertir a lista y ordenar (admins primero)
           final usersList = uniqueUsers.values.toList();
           usersList.sort((a, b) {
             if (a.isAdmin && !b.isAdmin) return -1;
@@ -285,83 +350,35 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
       context: context,
       builder: (dialogContext) => StatefulBuilder(
         builder: (context, setState) => AlertDialog(
-          title: const Text('Crear Usuario'),
+          title: const Text('Crear Usuario', style: TextStyle(color: Color(0xFF172B4D))),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          backgroundColor: Colors.white,
+          surfaceTintColor: Colors.white,
           content: Form(
             key: formKey,
             child: SingleChildScrollView(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  TextFormField(
-                    controller: nameController,
-                    decoration: const InputDecoration(
-                      labelText: 'Nombre',
-                      prefixIcon: Icon(Icons.person),
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) =>
-                        value?.isEmpty ?? true ? 'Campo requerido' : null,
-                  ),
+                  _buildTextField(nameController, 'Nombre', Icons.person_outline),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: emailController,
-                    decoration: const InputDecoration(
-                      labelText: 'Email',
-                      prefixIcon: Icon(Icons.email),
-                      border: OutlineInputBorder(),
-                    ),
-                    keyboardType: TextInputType.emailAddress,
-                    validator: (value) =>
-                        value?.isEmpty ?? true ? 'Campo requerido' : null,
-                  ),
+                  _buildTextField(emailController, 'Email', Icons.email_outlined, keyboardType: TextInputType.emailAddress),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: passwordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Contraseña',
-                      prefixIcon: Icon(Icons.lock),
-                      border: OutlineInputBorder(),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value?.isEmpty ?? true) {
-                        return 'Campo requerido';
-                      }
-                      if (value!.length < 6) {
-                        return 'Mínimo 6 caracteres';
-                      }
-                      return null;
-                    },
-                  ),
+                  _buildTextField(passwordController, 'Contraseña', Icons.lock_outline, obscureText: true, minLength: 6),
                   const SizedBox(height: 16),
-                  TextFormField(
-                    controller: confirmPasswordController,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirmar Contraseña',
-                      prefixIcon: Icon(Icons.lock_outline),
-                      border: OutlineInputBorder(),
-                    ),
-                    obscureText: true,
-                    validator: (value) {
-                      if (value?.isEmpty ?? true) {
-                        return 'Campo requerido';
-                      }
-                      if (value != passwordController.text) {
-                        return 'Las contraseñas no coinciden';
-                      }
-                      return null;
-                    },
-                  ),
+                  _buildTextField(confirmPasswordController, 'Confirmar Contraseña', Icons.lock_outline, obscureText: true, matchController: passwordController),
                   const SizedBox(height: 16),
                   CheckboxListTile(
-                    title: const Text('Es administrador'),
-                    subtitle: const Text('Los administradores tienen acceso completo'),
+                    title: const Text('Es administrador', style: TextStyle(color: Color(0xFF172B4D))),
+                    subtitle: const Text('Los administradores tienen acceso completo', style: TextStyle(color: Color(0xFF5E6C84), fontSize: 12)),
                     value: isAdmin,
+                    activeColor: const Color(0xFF0052CC),
+                    contentPadding: EdgeInsets.zero,
                     onChanged: (value) {
                       setState(() {
                         isAdmin = value ?? false;
                         if (isAdmin) {
-                          selectedSedeId = null; // Los admins no tienen sede
+                          selectedSedeId = null;
                         }
                       });
                     },
@@ -372,40 +389,39 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                       stream: _sedeService.getSedesActivas(),
                       builder: (context, snapshot) {
                         if (snapshot.connectionState == ConnectionState.waiting) {
-                          return const Padding(
-                            padding: EdgeInsets.all(16.0),
-                            child: Center(child: CircularProgressIndicator()),
-                          );
+                          return const Center(child: CircularProgressIndicator(strokeWidth: 2));
                         }
 
                         if (snapshot.hasError) {
-                          return Text(
-                            'Error al cargar sedes: ${snapshot.error}',
-                            style: const TextStyle(color: Colors.red),
-                          );
+                          return Text('Error: ${snapshot.error}', style: const TextStyle(color: Colors.red));
                         }
 
                         final sedes = snapshot.data ?? [];
                         if (sedes.isEmpty) {
                           return Container(
-                            padding: const EdgeInsets.all(16),
+                            padding: const EdgeInsets.all(12),
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.red),
-                              borderRadius: BorderRadius.circular(4),
+                              color: const Color(0xFFFF5630).withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(8),
                             ),
-                            child: const Text(
-                              'No hay sedes disponibles. Cree una sede primero.',
-                              style: TextStyle(color: Colors.red),
-                            ),
+                            child: const Text('No hay sedes disponibles. Cree una sede primero.', style: TextStyle(color: Color(0xFFFF5630))),
                           );
                         }
 
                         return DropdownButtonFormField<String>(
                           value: selectedSedeId,
-                          decoration: const InputDecoration(
+                          decoration: InputDecoration(
                             labelText: 'Seleccionar Sede',
-                            prefixIcon: Icon(Icons.location_city),
-                            border: OutlineInputBorder(),
+                            prefixIcon: const Icon(Icons.location_city_outlined, color: Color(0xFF5E6C84)),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                            enabledBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFFDFE1E6)),
+                            ),
+                            focusedBorder: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                              borderSide: const BorderSide(color: Color(0xFF0052CC), width: 2),
+                            ),
                             helperText: 'Sede donde trabajará el técnico',
                           ),
                           items: sedes.map((sede) {
@@ -421,7 +437,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                           },
                           validator: (value) {
                             if (!isAdmin && (value == null || value.isEmpty)) {
-                              return 'Debe seleccionar una sede para el técnico';
+                              return 'Debe seleccionar una sede';
                             }
                             return null;
                           },
@@ -436,7 +452,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
           actions: [
             TextButton(
               onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancelar'),
+              child: const Text('Cancelar', style: TextStyle(color: Color(0xFF5E6C84))),
             ),
             ElevatedButton(
               onPressed: () async {
@@ -450,7 +466,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                       sedeId: isAdmin ? null : selectedSedeId,
                     );
                     
-                    Navigator.pop(dialogContext); // Close the dialog
+                    Navigator.pop(dialogContext);
 
                     if (userId != null) {
                       showAnimatedDialog(context, DialogType.success, 'Usuario creado exitosamente');
@@ -463,14 +479,51 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
+                backgroundColor: const Color(0xFF0052CC),
                 foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
               ),
               child: const Text('Crear'),
             ),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildTextField(
+    TextEditingController controller, 
+    String label, 
+    IconData icon, 
+    {bool obscureText = false, 
+    TextInputType? keyboardType,
+    int? minLength,
+    TextEditingController? matchController}
+  ) {
+    return TextFormField(
+      controller: controller,
+      decoration: InputDecoration(
+        labelText: label,
+        prefixIcon: Icon(icon, color: const Color(0xFF5E6C84)),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFDFE1E6)),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF0052CC), width: 2),
+        ),
+        labelStyle: const TextStyle(color: Color(0xFF5E6C84)),
+      ),
+      obscureText: obscureText,
+      keyboardType: keyboardType,
+      validator: (value) {
+        if (value?.isEmpty ?? true) return 'Campo requerido';
+        if (minLength != null && value!.length < minLength) return 'Mínimo $minLength caracteres';
+        if (matchController != null && value != matchController.text) return 'Las contraseñas no coinciden';
+        return null;
+      },
     );
   }
 
@@ -482,56 +535,26 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Cambiar Contraseña'),
+        title: const Text('Cambiar Contraseña', style: TextStyle(color: Color(0xFF172B4D))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.white,
         content: Form(
           key: formKey,
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text('Usuario: $email'),
+              Text('Usuario: $email', style: const TextStyle(color: Color(0xFF5E6C84))),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: newPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Nueva Contraseña',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Campo requerido';
-                  }
-                  if (value!.length < 6) {
-                    return 'La contraseña debe tener al menos 6 caracteres';
-                  }
-                  return null;
-                },
-              ),
+              _buildTextField(newPasswordController, 'Nueva Contraseña', Icons.lock_outline, obscureText: true, minLength: 6),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: confirmPasswordController,
-                decoration: const InputDecoration(
-                  labelText: 'Confirmar Contraseña',
-                  border: OutlineInputBorder(),
-                ),
-                obscureText: true,
-                validator: (value) {
-                  if (value?.isEmpty ?? true) {
-                    return 'Campo requerido';
-                  }
-                  if (value != newPasswordController.text) {
-                    return 'Las contraseñas no coinciden';
-                  }
-                  return null;
-                },
-              ),
+              _buildTextField(confirmPasswordController, 'Confirmar Contraseña', Icons.lock_outline, obscureText: true, matchController: newPasswordController),
             ],
           ),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF5E6C84))),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -551,6 +574,11 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                 }
               }
             },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF0052CC),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             child: const Text('Cambiar'),
           ),
         ],
@@ -573,16 +601,17 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: Text('¿Está seguro que desea eliminar al usuario ${user.name}?'),
+        title: const Text('Confirmar eliminación', style: TextStyle(color: Color(0xFF172B4D))),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        backgroundColor: Colors.white,
+        content: Text('¿Está seguro que desea eliminar al usuario ${user.name}?', style: const TextStyle(color: Color(0xFF5E6C84))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('Cancelar'),
+            child: const Text('Cancelar', style: TextStyle(color: Color(0xFF5E6C84))),
           ),
           ElevatedButton(
             onPressed: () async {
-              final scaffoldMessenger = ScaffoldMessenger.of(context);
               Navigator.pop(context);
               
               final success = await _authService.deleteUser(user.id);
@@ -593,7 +622,11 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                 showAnimatedDialog(context, DialogType.error, 'Error al eliminar usuario');
               }
             },
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFFF5630),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
             child: const Text('Eliminar'),
           ),
         ],
