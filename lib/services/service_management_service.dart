@@ -444,6 +444,7 @@ class ServiceManagementService {
         'finalPrice': calculatedPrice,
         'technicianCommission': technicianCommission,
         'adminCommission': adminCommission,
+        'isPaid': false, // Importante: marcar como no pagado
       };
 
       await _firestore.collection('services').doc(serviceId).update(updateData);
@@ -490,6 +491,7 @@ class ServiceManagementService {
       double technicianCommission = finalPrice * 0.7;
       double adminCommission = finalPrice * 0.3;
 
+
       Map<String, dynamic> updateData = {
         'status': 'completed',
         'completedAt': DateTime.now().toIso8601String(),
@@ -498,6 +500,7 @@ class ServiceManagementService {
         'finalPrice': finalPrice,
         'technicianCommission': technicianCommission,
         'adminCommission': adminCommission,
+        'isPaid': false, // Importante: marcar como no pagado
       };
 
       await _firestore.collection('services').doc(serviceId).update(updateData);

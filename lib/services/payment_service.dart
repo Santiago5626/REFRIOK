@@ -34,6 +34,36 @@ class PaymentService {
     }
   }
 
+  // Obtener las ganancias pendientes del técnico (su comisión del 70%)
+  Future<double> getPendingEarnings(String technicianId) async {
+    try {
+      // Obtener todos los servicios completados pero no pagados del técnico
+      QuerySnapshot unpaidServices = await _firestore
+          .collection('services')
+          .where('assignedTechnicianId', isEqualTo: technicianId)
+          .where('status', isEqualTo: 'completed')
+          .where('isPaid', isEqualTo: false)
+          .get();
+
+      double totalPendingEarnings = 0.0;
+
+      for (var doc in unpaidServices.docs) {
+        Service service = Service.fromMap({
+          'id': doc.id,
+          ...doc.data() as Map<String, dynamic>,
+        });
+
+        // Sumar la comisión del técnico (70% del precio final)
+        totalPendingEarnings += service.technicianCommission;
+      }
+
+      return totalPendingEarnings;
+    } catch (e) {
+      print('Error al calcular ganancias pendientes: $e');
+      return 0.0;
+    }
+  }
+
   // Obtener el historial de pagos de un técnico
   Future<List<Map<String, dynamic>>> getPaymentHistory(String technicianId) async {
     try {

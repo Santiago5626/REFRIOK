@@ -149,13 +149,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   Icons.check_circle,
                   Colors.green,
                 ),
-                _buildStatItem(
-                  'Ganancias\nTotales',
-                  '\$${user.totalEarnings.toStringAsFixed(0)}',
-                  Icons.attach_money,
-                  Colors.amber,
+                // Mostrar ganancias totales (pagadas + pendientes)
+                FutureBuilder<double>(
+                  future: _paymentService.getPendingEarnings(user.id),
+                  builder: (context, snapshot) {
+                    double pendingEarnings = snapshot.data ?? 0.0;
+                    double totalEarnings = user.totalEarnings + pendingEarnings;
+                    
+                    return _buildStatItem(
+                      'Ganancias\nTotales',
+                      '\$${totalEarnings.toStringAsFixed(0)}',
+                      Icons.attach_money,
+                      Colors.amber,
+                    );
+                  },
                 ),
               ],
+            ),
+            const SizedBox(height: 16),
+            // Desglose de ganancias
+            FutureBuilder<double>(
+              future: _paymentService.getPendingEarnings(user.id),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                
+                double pendingEarnings = snapshot.data ?? 0.0;
+                
+                return Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(
+                      color: Colors.blue,
+                      width: 1,
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Ganancias Pagadas:',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          Text(
+                            '\$${user.totalEarnings.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 8),
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          const Text(
+                            'Ganancias Pendientes:',
+                            style: TextStyle(fontSize: 14),
+                          ),
+                          Text(
+                            '\$${pendingEarnings.toStringAsFixed(0)}',
+                            style: const TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                );
+              },
             ),
             const SizedBox(height: 16),
             // Agregar información de deuda pendiente

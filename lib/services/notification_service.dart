@@ -185,7 +185,7 @@ class NotificationService {
     
     // Enviar Push Notification real usando el backend
     await sendPushNotification(
-      technicianId: technicianId,
+      userId: technicianId,
       title: 'Nuevo Servicio Asignado',
       body: 'Se te ha asignado el servicio: $serviceTitle',
       data: {
@@ -228,7 +228,7 @@ class NotificationService {
       
       // Enviar Push Notification real al admin
       await sendPushNotification(
-        technicianId: adminId, // Reutilizamos el parámetro technicianId para el adminId
+        userId: adminId, // Ahora usa userId en lugar de technicianId
         title: 'Actualización de Servicio',
         body: message,
         data: {
@@ -382,7 +382,7 @@ class NotificationService {
   }
   // Enviar notificación Push usando el backend
   Future<void> sendPushNotification({
-    required String technicianId,
+    required String userId, // Cambiado de technicianId a userId para mayor claridad
     required String title,
     required String body,
     Map<String, dynamic>? data,
@@ -400,7 +400,7 @@ class NotificationService {
         Uri.parse('$backendUrl/sendPush'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
-          'technicianId': technicianId,
+          'userId': userId, // Cambiado de technicianId a userId
           'title': title,
           'body': body,
           'data': data,
@@ -409,7 +409,7 @@ class NotificationService {
       );
 
       if (response.statusCode == 200) {
-        print('✅ Notificación push enviada con éxito');
+        print('✅ Notificación push enviada con éxito a $userId');
       } else {
         print('❌ Error enviando push: ${response.body}');
       }

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/service.dart';
 import '../../services/service_management_service.dart';
+import '../../utils/fix_ispaid_field.dart';
 
 class PaymentManagementScreen extends StatefulWidget {
   const PaymentManagementScreen({Key? key}) : super(key: key);
@@ -24,6 +25,14 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
+        actions: [
+          // Botón temporal para arreglar campo isPaid
+          IconButton(
+            icon: const Icon(Icons.build),
+            tooltip: 'Arreglar campo isPaid',
+            onPressed: _fixIsPaidField,
+          ),
+        ],
       ),
       body: StreamBuilder<List<Service>>(
         stream: _serviceService.getAllServices(),
@@ -377,6 +386,56 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
             ),
           );
         }
+      }
+    }
+  }
+
+  Future<void> _fixIsPaidField() async {
+    try {
+      // Mostrar indicador de carga
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => const AlertDialog(
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Arreglando campo isPaid...'),
+            ],
+          ),
+        ),
+      );
+
+      // Ejecutar fix
+      final fix = FixIsPaidField();
+      await fix.fixServices();
+
+      // Cerrar indicador de carga
+      if (mounted) Navigator.of(context).pop();
+
+      // Mostrar resultado
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Campo isPaid actualizado exitosamente'),
+            backgroundColor: Colors.green,
+            duration: Duration(seconds: 2),
+          ),
+        );
+      }
+    } catch (e) {
+      // Cerrar indicador de carga si está abierto
+      if (mounted) Navigator.of(context).pop();
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     }
   }

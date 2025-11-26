@@ -32,6 +32,9 @@ class Service {
   final bool isPaid;
   final DateTime? paidAt;
   final String? sedeId;
+  final double finalPrice;
+  final double adminCommission;
+  final double technicianCommission;
 
   Service({
     required this.id,
@@ -52,7 +55,12 @@ class Service {
     this.isPaid = false,
     this.paidAt,
     this.sedeId,
-  });
+    double? finalPrice,
+    double? adminCommission,
+    double? technicianCommission,
+  })  : finalPrice = finalPrice ?? 0.0,
+        adminCommission = adminCommission ?? 0.0,
+        technicianCommission = technicianCommission ?? 0.0;
 
   // Verifica si el técnico debe ser bloqueado automáticamente
   bool shouldBlockTechnician() {
@@ -73,18 +81,6 @@ class Service {
   static const double adminCommissionRate = 0.30; // 30% para admin
   static const double technicianCommissionRate = 0.70; // 70% para técnico
 
-  double get finalPrice {
-    // Para revisiones y servicios completos, usar el precio base de la sede
-    return basePrice;
-  }
-
-  double get adminCommission {
-    return finalPrice * adminCommissionRate;
-  }
-
-  double get technicianCommission {
-    return finalPrice * technicianCommissionRate;
-  }
 
   factory Service.fromMap(Map<String, dynamic> map) {
     return Service(
@@ -114,6 +110,9 @@ class Service {
       isPaid: map['isPaid'] ?? false,
       paidAt: map['paidAt'] != null ? DateTime.parse(map['paidAt']) : null,
       sedeId: map['sedeId'],
+      finalPrice: (map['finalPrice'] ?? 0.0).toDouble(),
+      adminCommission: (map['adminCommission'] ?? 0.0).toDouble(),
+      technicianCommission: (map['technicianCommission'] ?? 0.0).toDouble(),
     );
   }
 
@@ -137,6 +136,9 @@ class Service {
       'isPaid': isPaid,
       'paidAt': paidAt?.toIso8601String(),
       'sedeId': sedeId,
+      'finalPrice': finalPrice,
+      'adminCommission': adminCommission,
+      'technicianCommission': technicianCommission,
     };
   }
 
@@ -159,6 +161,9 @@ class Service {
     bool? isPaid,
     DateTime? paidAt,
     String? sedeId,
+    double? finalPrice,
+    double? adminCommission,
+    double? technicianCommission,
   }) {
     return Service(
       id: id ?? this.id,
@@ -179,6 +184,9 @@ class Service {
       isPaid: isPaid ?? this.isPaid,
       paidAt: paidAt ?? this.paidAt,
       sedeId: sedeId ?? this.sedeId,
+      finalPrice: finalPrice ?? this.finalPrice,
+      adminCommission: adminCommission ?? this.adminCommission,
+      technicianCommission: technicianCommission ?? this.technicianCommission,
     );
   }
 

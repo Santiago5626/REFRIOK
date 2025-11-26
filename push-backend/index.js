@@ -22,22 +22,25 @@ app.post('/sendPush', async (req, res) => {
     console.log('🔔 POST /sendPush recibido →', req.body);
     lastRequest = req.body;
 
-    const { technicianId, title, body, data, apiKey } = req.body;
+    const { userId, technicianId, title, body, data, apiKey } = req.body;
 
     if (process.env.API_KEY && apiKey !== process.env.API_KEY) {
         return res.status(401).json({ success: false, error: 'Unauthorized' });
     }
 
-    if (!technicianId) {
-        return res.status(400).json({ success: false, error: 'technicianId requerido' });
+    // Aceptar tanto userId como technicianId para retrocompatibilidad
+    const targetUserId = userId || technicianId;
+
+    if (!targetUserId) {
+        return res.status(400).json({ success: false, error: 'userId o technicianId requerido' });
     }
 
     try {
         // 1. Buscar el usuario en Firestore para obtener su token
-        const userDoc = await admin.firestore().collection('users').doc(technicianId).get();
+        const userDoc = await admin.firestore().collection('users').doc(targetUserId).get();
 
         if (!userDoc.exists) {
-            console.log(`❌ Usuario ${technicianId} no encontrado en Firestore`);
+            console.log(`❌ Usuario ${targetUserId} no encontrado en Firestore`);
             return res.status(404).json({ success: false, error: 'Usuario no encontrado' });
         }
 
@@ -45,11 +48,11 @@ app.post('/sendPush', async (req, res) => {
         const fcmToken = userData.fcmToken;
 
         if (!fcmToken) {
-            console.log(`⚠️ El usuario ${technicianId} no tiene un token FCM guardado`);
+            console.log(`⚠️ El usuario ${targetUserId} no tiene un token FCM guardado`);
             return res.status(404).json({ success: false, error: 'Usuario sin token FCM' });
         }
 
-        console.log(`✅ Token encontrado para ${technicianId}: ${fcmToken.substring(0, 10)}...`);
+        console.log(`✅ Token encontrado para ${targetUserId}: ${fcmToken.substring(0, 10)}...`);
 
         // 2. Enviar la notificación al token específico
         const message = {
