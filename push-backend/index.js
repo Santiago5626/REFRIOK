@@ -17,7 +17,10 @@ admin.initializeApp({
     credential: admin.credential.cert(serviceAccount),
 });
 
+let lastRequest = null;
 app.post('/sendPush', async (req, res) => {
+    console.log('🔔 POST /sendPush recibido →', req.body);
+    lastRequest = req.body;
     console.log('🔔 POST /sendPush recibido →', req.body);
     const { technicianId, title, body, data, apiKey } = req.body;
     // Opcional: proteger con una clave sencilla
@@ -51,5 +54,8 @@ app.get('/health', (req, res) => {
     res.json({ status: 'ok' });
 });
 
-const PORT = process.env.PORT || 3000;
+// Endpoint para inspeccionar la última petición recibida
+app.get('/lastRequest', (req, res) => {
+    res.json({ lastRequest });
+});
 app.listen(PORT, () => console.log(`🚀 Backend listening on ${PORT}`));
