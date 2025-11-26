@@ -58,4 +58,5 @@ app.get('/health', (req, res) => {
 app.get('/lastRequest', (req, res) => {
     res.json({ lastRequest });
 });
+const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`🚀 Backend listening on ${PORT}`));
