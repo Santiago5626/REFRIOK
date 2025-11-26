@@ -142,7 +142,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 margin: const EdgeInsets.only(bottom: 20),
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFFFFAE6), // Fondo amarillo suave
+                  color: const Color(0xFFFFFAE6),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: const Color(0xFFFFAB00)),
                   boxShadow: [
@@ -191,8 +191,12 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 ),
               ),
 
-            _buildStatusHeader(),
-            const SizedBox(height: 20),
+            // Mostrar estado solo si NO está completado con deuda pendiente
+            if (!(_currentService.status == ServiceStatus.completed && !_currentService.isPaid)) ...[
+              _buildStatusHeader(),
+              const SizedBox(height: 20),
+            ],
+
             _buildInfoCard(),
             const SizedBox(height: 20),
             if (_currentUser!.isAdmin ||
@@ -206,7 +210,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               const SizedBox(height: 30),
             ],
             _buildActionButtons(),
-            const SizedBox(height: 40), // Espacio extra al final
+            const SizedBox(height: 40),
           ],
         ),
       ),
@@ -276,15 +280,19 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                  color: const Color(0xFF0052CC).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.info_outline, color: AppTheme.primaryBlue),
+                child: const Icon(Icons.info_outline, color: Color(0xFF0052CC)),
               ),
               const SizedBox(width: 12),
               const Text(
                 'Información',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172B4D),
+                ),
               ),
             ],
           ),
@@ -321,15 +329,19 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.purple.withValues(alpha: 0.1),
+                  color: const Color(0xFF0052CC).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.person_outline, color: Colors.purple),
+                child: const Icon(Icons.person_outline, color: Color(0xFF0052CC)),
               ),
               const SizedBox(width: 12),
               const Text(
                 'Cliente',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172B4D),
+                ),
               ),
             ],
           ),
@@ -342,12 +354,16 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                   children: [
                     Text(
                       _currentService.clientName,
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                      style: const TextStyle(
+                        fontSize: 16, 
+                        fontWeight: FontWeight.w500,
+                        color: Color(0xFF172B4D),
+                      ),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       _currentService.clientPhone,
-                      style: TextStyle(color: Colors.grey[600]),
+                      style: const TextStyle(color: Color(0xFF5E6C84)),
                     ),
                   ],
                 ),
@@ -356,8 +372,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 onPressed: _callClient,
                 icon: const Icon(Icons.phone),
                 style: IconButton.styleFrom(
-                  backgroundColor: AppTheme.successText.withValues(alpha: 0.1),
-                  foregroundColor: AppTheme.successText,
+                  backgroundColor: const Color(0xFF36B37E).withValues(alpha: 0.1),
+                  foregroundColor: const Color(0xFF36B37E),
                 ),
               ),
             ],
@@ -389,15 +405,19 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: AppTheme.errorText.withValues(alpha: 0.1),
+                  color: const Color(0xFFFF5630).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.location_on_outlined, color: AppTheme.errorText),
+                child: const Icon(Icons.location_on_outlined, color: Color(0xFFFF5630)),
               ),
               const SizedBox(width: 12),
               const Text(
                 'Ubicación',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172B4D),
+                ),
               ),
             ],
           ),
@@ -407,47 +427,39 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               Expanded(
                 child: Text(
                   _currentService.location,
-                  style: const TextStyle(fontSize: 16),
+                  style: const TextStyle(
+                    fontSize: 16,
+                    color: Color(0xFF172B4D),
+                  ),
                 ),
               ),
               const SizedBox(width: 12),
               GestureDetector(
                 onTap: _openMaps,
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  width: 48,
+                  height: 48,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(24),
+                    borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: Colors.grey.withValues(alpha: 0.2)),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withValues(alpha: 0.05),
+                        color: Colors.black.withValues(alpha: 0.08),
                         blurRadius: 8,
-                        offset: const Offset(0, 2),
+                        offset: const Offset(0, 4),
                       ),
                     ],
                   ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Container(
-                        padding: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(
-                          color: Colors.red,
-                          shape: BoxShape.circle,
-                        ),
-                        child: const Icon(Icons.location_on, color: Colors.white, size: 16),
+                  child: Center(
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: const BoxDecoration(
+                        color: Colors.red,
+                        shape: BoxShape.circle,
                       ),
-                      const SizedBox(width: 10),
-                      const Text(
-                        'Ir con Google Maps',
-                        style: TextStyle(
-                          color: Color(0xFF172B4D),
-                          fontWeight: FontWeight.w600,
-                          fontSize: 14,
-                        ),
-                      ),
-                    ],
+                      child: const Icon(Icons.near_me, color: Colors.white, size: 20),
+                    ),
                   ),
                 ),
               ),
@@ -480,15 +492,19 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
               Container(
                 padding: const EdgeInsets.all(8),
                 decoration: BoxDecoration(
-                  color: Colors.teal.withValues(alpha: 0.1),
+                  color: const Color(0xFF36B37E).withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: const Icon(Icons.attach_money, color: Colors.teal),
+                child: const Icon(Icons.attach_money, color: Color(0xFF36B37E)),
               ),
               const SizedBox(width: 12),
               const Text(
                 'Detalles Financieros',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 18, 
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172B4D),
+                ),
               ),
             ],
           ),
@@ -499,21 +515,21 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
             _buildDetailItem('Precio Final', '\$${_currentService.finalPrice.toStringAsFixed(0)}', isBold: true),
             const SizedBox(height: 12),
             if (_currentUser!.isAdmin)
-              _buildDetailItem('Comisión Admin (30%)', '\$${_currentService.adminCommission.toStringAsFixed(0)}', color: AppTheme.primaryBlue)
+              _buildDetailItem('Comisión Admin (30%)', '\$${_currentService.adminCommission.toStringAsFixed(0)}', color: const Color(0xFF0052CC))
             else
-              _buildDetailItem('Tu Ganancia (70%)', '\$${_currentService.technicianCommission.toStringAsFixed(0)}', color: AppTheme.successText),
+              _buildDetailItem('Tu Ganancia (70%)', '\$${_currentService.technicianCommission.toStringAsFixed(0)}', color: const Color(0xFF36B37E)),
           ] else ...[
             _buildDetailItem('Precio Base', '\$${_currentService.basePrice.toStringAsFixed(0)}'),
             const SizedBox(height: 12),
             if (_currentUser!.isAdmin)
               Text(
                 'Ganancia estimada (30%): \$${(_currentService.basePrice * 0.3).toStringAsFixed(0)}',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                style: const TextStyle(color: Color(0xFF5E6C84), fontSize: 14),
               )
             else
               Text(
                 'Ganancia estimada (70%): \$${(_currentService.basePrice * 0.7).toStringAsFixed(0)}',
-                style: TextStyle(color: Colors.grey[600], fontSize: 14),
+                style: const TextStyle(color: Color(0xFF5E6C84), fontSize: 14),
               ),
           ],
         ],
@@ -527,8 +543,8 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       children: [
         Text(
           label,
-          style: TextStyle(
-            color: Colors.grey[600],
+          style: const TextStyle(
+            color: Color(0xFF5E6C84),
             fontSize: 12,
             fontWeight: FontWeight.w500,
           ),
@@ -539,7 +555,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           style: TextStyle(
             fontSize: 16,
             fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
-            color: color ?? AppTheme.textPrimary,
+            color: color ?? const Color(0xFF172B4D),
           ),
         ),
       ],
