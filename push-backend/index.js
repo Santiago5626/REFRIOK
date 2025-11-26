@@ -29,6 +29,7 @@ app.post('/sendPush', async (req, res) => {
     if (!technicianId) {
         return res.status(400).json({ success: false, error: 'technicianId requerido' });
     }
+    const topic = `technician_${technicianId}`;
     const message = {
         topic: topic,
         notification: {
