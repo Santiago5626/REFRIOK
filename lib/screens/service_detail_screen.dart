@@ -619,24 +619,42 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 ),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Tu ganancia (70%): \$${_currentService.technicianCommission.toStringAsFixed(0)}',
-                style: const TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.green,
+              // Mostrar ganancia según el rol del usuario
+              if (_currentUser!.isAdmin)
+                Text(
+                  'Tu ganancia (30%): \$${_currentService.adminCommission.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.blue,
+                  ),
+                )
+              else
+                Text(
+                  'Tu ganancia (70%): \$${_currentService.technicianCommission.toStringAsFixed(0)}',
+                  style: const TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.green,
+                  ),
                 ),
-              ),
             ] else ...[
               Text(
                 'Precio base: \$${_currentService.basePrice.toStringAsFixed(0)}',
                 style: const TextStyle(fontSize: 16),
               ),
               const SizedBox(height: 8),
-              Text(
-                'Revisión: \$${_currentService.basePrice.toStringAsFixed(0)} (Tu ganancia: ${(_currentService.basePrice * 0.7).toStringAsFixed(0)})',
-                style: const TextStyle(fontSize: 14, color: Colors.grey),
-              ),
+              // Mostrar ganancia según el rol del usuario
+              if (_currentUser!.isAdmin)
+                Text(
+                  'Revisión: \$${_currentService.basePrice.toStringAsFixed(0)} (Tu ganancia: ${(_currentService.basePrice * 0.3).toStringAsFixed(0)})',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                )
+              else
+                Text(
+                  'Revisión: \$${_currentService.basePrice.toStringAsFixed(0)} (Tu ganancia: ${(_currentService.basePrice * 0.7).toStringAsFixed(0)})',
+                  style: const TextStyle(fontSize: 14, color: Colors.grey),
+                ),
             ],
           ],
         ),
@@ -1030,6 +1048,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           });
           if (!mounted) return;
           await showAnimatedDialog(context, DialogType.success, 'Servicio asignado correctamente');
+          // Regresar a la pantalla anterior con el resultado actualizado
+          if (!mounted) return;
+          Navigator.pop(context, true); // Devolver true para indicar que hubo cambios
         }
       } else {
         if (!mounted) return;

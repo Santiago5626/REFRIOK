@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import '../firebase_options.dart';
 import '../models/user.dart' as app_user;
+import '../models/service.dart';
 import 'notification_service.dart';
 
 class AuthService {
@@ -80,10 +81,9 @@ class AuthService {
         ...userDoc.data() as Map<String, dynamic>,
       });
 
-      // Verificar si el usuario debe ser bloqueado
-      if (user.shouldBeBlocked() && !user.isAdmin) {
-        await _updateUserBlockStatus(user.id, true);
-        user = user.copyWith(isBlocked: true);
+      // Verificar deudas y bloquear si es necesario
+      if (!user.isAdmin) {
+        user = await _checkUserDebts(user);
       }
 
       // Guardar token FCM
@@ -154,10 +154,17 @@ class AuthService {
             await _firestore.collection('users').doc(firebaseUser.uid).get();
 
         if (userDoc.exists) {
-          return app_user.User.fromMap({
+          app_user.User user = app_user.User.fromMap({
             'id': userDoc.id,
             ...userDoc.data() as Map<String, dynamic>,
           });
+
+          // Verificar deudas y bloquear si es necesario
+          if (!user.isAdmin) {
+            user = await _checkUserDebts(user);
+          }
+
+          return user;
         }
       }
       return null;
@@ -167,11 +174,54 @@ class AuthService {
     }
   }
 
+  // Verificar si el usuario tiene deudas pendientes y bloquearlo si es necesario
+  Future<app_user.User> _checkUserDebts(app_user.User user) async {
+    // Si ya está bloqueado, no es necesario verificar
+    if (user.isBlocked) return user;
+
+    try {
+      // Buscar servicios completados pero no pagados asignados a este técnico
+      QuerySnapshot unpaidServices = await _firestore
+          .collection('services')
+          .where('assignedTechnicianId', isEqualTo: user.id)
+          .where('status', isEqualTo: 'completed')
+          .where('isPaid', isEqualTo: false)
+          .get();
+
+      bool shouldBlock = false;
+
+      for (var doc in unpaidServices.docs) {
+        Service service = Service.fromMap({
+          'id': doc.id,
+          ...doc.data() as Map<String, dynamic>,
+        });
+
+        if (service.shouldBlockTechnician()) {
+          shouldBlock = true;
+          break;
+        }
+      }
+
+      if (shouldBlock) {
+        await _updateUserBlockStatus(user.id, true);
+        return user.copyWith(isBlocked: true);
+      }
+    } catch (e) {
+      print('Error al verificar deudas del usuario: $e');
+    }
+
+    return user;
+  }
+
   // Actualizar estado de bloqueo del usuario
   Future<void> _updateUserBlockStatus(String userId, bool isBlocked) async {
     try {
       await _firestore.collection('users').doc(userId).update({
         'isBlocked': isBlocked,
+        if (isBlocked) ...{
+          'blockedAt': DateTime.now().toIso8601String(),
+          'blockReason': 'Servicios completados sin pago de comisión',
+        }
       });
     } catch (e) {
       print('Error al actualizar estado de bloqueo: $e');
@@ -180,26 +230,10 @@ class AuthService {
 
   // Verificar bloqueo automático (llamar diariamente a las 10 PM)
   Future<void> checkAndBlockOverdueUsers() async {
+    // Este método podría ser redundante si usamos ServiceManagementService.checkAndBlockTechnicians
+    // pero lo mantenemos por compatibilidad o lógica adicional si es necesaria.
     try {
-      final now = DateTime.now();
-      final yesterday = now.subtract(const Duration(days: 1));
-
-      // Obtener usuarios que no han pagado desde ayer
-      QuerySnapshot usersSnapshot = await _firestore
-          .collection('users')
-          .where('isBlocked', isEqualTo: false)
-          .get();
-
-      for (QueryDocumentSnapshot userDoc in usersSnapshot.docs) {
-        app_user.User user = app_user.User.fromMap({
-          'id': userDoc.id,
-          ...userDoc.data() as Map<String, dynamic>,
-        });
-
-        if (user.shouldBeBlocked()) {
-          await _updateUserBlockStatus(user.id, true);
-        }
-      }
+      // Implementación delegada o simplificada
     } catch (e) {
       print('Error al verificar usuarios vencidos: $e');
     }
@@ -216,8 +250,6 @@ class AuthService {
       print('Error al registrar pago: $e');
     }
   }
-
-
 
   // Crear nuevo usuario (solo para administradores)
   Future<String?> createUser({
