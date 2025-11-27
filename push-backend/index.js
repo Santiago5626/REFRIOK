@@ -74,6 +74,39 @@ app.post('/sendPush', async (req, res) => {
     }
 });
 
+// Endpoint para restablecer contraseña de usuario
+app.post('/resetPassword', async (req, res) => {
+    console.log('🔐 POST /resetPassword recibido →', { email: req.body.email });
+
+    const { email, newPassword, apiKey } = req.body;
+
+    // Verificar API Key si está configurada
+    if (process.env.API_KEY && apiKey !== process.env.API_KEY) {
+        return res.status(401).json({ success: false, error: 'Unauthorized' });
+    }
+
+    if (!email || !newPassword) {
+        return res.status(400).json({ success: false, error: 'email y newPassword son requeridos' });
+    }
+
+    try {
+        // Buscar el usuario por email
+        const user = await admin.auth().getUserByEmail(email);
+
+        // Actualizar la contraseña
+        await admin.auth().updateUser(user.uid, {
+            password: newPassword,
+        });
+
+        console.log(`✅ Contraseña actualizada para ${email}`);
+        res.json({ success: true, message: 'Contraseña actualizada exitosamente' });
+
+    } catch (e) {
+        console.error('❌ Error actualizando contraseña:', e);
+        res.status(500).json({ success: false, error: e.message });
+    }
+});
+
 // Ruta raíz – confirma que el servidor está activo
 app.get('/', (req, res) => {
     res.send('Backend activo');
