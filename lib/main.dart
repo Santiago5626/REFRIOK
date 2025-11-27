@@ -6,12 +6,17 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'firebase_options.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/service_detail_screen.dart';
 import 'services/scheduler_service.dart';
 import 'models/user.dart' as app_user;
+import 'models/service.dart';
 import 'services/auth_service.dart';
 import 'services/notification_service.dart';
 import 'services/service_management_service.dart';
 import 'theme/app_theme.dart';
+
+// GlobalKey para el navegador
+final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
 // Manejador de mensajes en segundo plano
 @pragma('vm:entry-point')
@@ -45,6 +50,12 @@ void _initializeServicesAsync() async {
   try {
     // Inicializar servicios en segundo plano
     final notificationService = NotificationService();
+    
+    // Configurar callback para navegación desde notificaciones
+    notificationService.onNotificationTap = (String serviceId) async {
+      await _navigateToService(serviceId);
+    };
+    
     await notificationService.initialize();
 
     // Inicializar el servicio de programación
@@ -54,12 +65,34 @@ void _initializeServicesAsync() async {
   }
 }
 
+// Método para navegar al servicio desde una notificación
+Future<void> _navigateToService(String serviceId) async {
+  try {
+    final serviceService = ServiceManagementService();
+    final service = await serviceService.getServiceById(serviceId);
+    
+    if (service != null && navigatorKey.currentContext != null) {
+      navigatorKey.currentState?.push(
+        MaterialPageRoute(
+          builder: (context) => ServiceDetailScreen(
+            service: service,
+            isAvailable: false,
+          ),
+        ),
+      );
+    }
+  } catch (e) {
+    print('Error al navegar al servicio: $e');
+  }
+}
+
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      navigatorKey: navigatorKey,
       title: 'REFRIOK',
       theme: AppTheme.lightTheme,
       initialRoute: '/',

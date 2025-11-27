@@ -10,6 +10,9 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _localNotifications = FlutterLocalNotificationsPlugin();
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   
+  // Callback para manejar la navegación al servicio
+  Function(String serviceId)? onNotificationTap;
+  
   Future<void> initialize() async {
     try {
       // Solo inicializar en plataformas móviles
@@ -43,9 +46,19 @@ class NotificationService {
 
         await _localNotifications.initialize(
           initializationSettings,
-          onDidReceiveNotificationResponse: (NotificationResponse response) {
-            // Manejar cuando el usuario toca la notificación
-            print('Notificación tocada: ${response.payload}');
+          onDidReceiveNotificationResponse: (NotificationResponse response) async {
+            // Manejar cuando el usuario toca la notificación local
+            if (response.payload != null) {
+              try {
+                final data = jsonDecode(response.payload!);
+                final serviceId = data['serviceId'];
+                if (serviceId != null && onNotificationTap != null) {
+                  onNotificationTap!(serviceId);
+                }
+              } catch (e) {
+                print('Error al procesar payload de notificación: $e');
+              }
+            }
           },
         );
 
@@ -73,8 +86,25 @@ class NotificationService {
       // Manejar cuando la app se abre desde una notificación
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         print('App abierta desde notificación: ${message.notification?.title}');
-        // Aquí puedes navegar a una pantalla específica
+        // Navegar al servicio si hay un serviceId en los datos
+        final serviceId = message.data['serviceId'];
+        if (serviceId != null && onNotificationTap != null) {
+          onNotificationTap!(serviceId);
+        }
       });
+      
+      // Manejar notificación inicial si la app se abrió desde una notificación
+      RemoteMessage? initialMessage = await _firebaseMessaging.getInitialMessage();
+      if (initialMessage != null) {
+        print('App iniciada desde notificación: ${initialMessage.notification?.title}');
+        final serviceId = initialMessage.data['serviceId'];
+        if (serviceId != null && onNotificationTap != null) {
+          // Esperar un poco para que la app termine de inicializarse
+          Future.delayed(const Duration(seconds: 1), () {
+            onNotificationTap!(serviceId);
+          });
+        }
+      }
     } catch (e) {
       print('Error initializing notifications: $e');
       // No lanzar el error para evitar que bloquee la app
@@ -127,7 +157,7 @@ class NotificationService {
       message.notification?.title ?? 'Nuevo Servicio',
       message.notification?.body ?? 'Se te ha asignado un nuevo servicio',
       platformChannelSpecifics,
-      payload: message.data.toString(),
+      payload: jsonEncode(message.data),
     );
   }
 
