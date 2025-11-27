@@ -449,6 +449,27 @@ class NotificationService {
     }
   }
 
+  // Delete all notifications for a user
+  Future<void> deleteAllNotifications(String userId) async {
+    try {
+      QuerySnapshot allNotifications = await _firestore
+          .collection('notifications')
+          .where('userId', isEqualTo: userId)
+          .get();
+
+      WriteBatch batch = _firestore.batch();
+      for (DocumentSnapshot doc in allNotifications.docs) {
+        batch.delete(doc.reference);
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error deleting all notifications: $e');
+      throw e;
+    }
+  }
+
+
   // Get user notifications stream
   Stream<List<Map<String, dynamic>>> getUserNotifications(String userId) {
     return _firestore

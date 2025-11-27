@@ -4,6 +4,7 @@ import '../models/service.dart';
 import '../models/sede.dart';
 import '../services/sede_service.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 
 class ReportsScreen extends StatefulWidget {
   const ReportsScreen({super.key});
@@ -275,7 +276,7 @@ class _ReportsScreenState extends State<ReportsScreen>
               const SizedBox(height: 16),
               _buildStatsCard(
                 'Ganancias Totales',
-                '\$${earnings['total'].toStringAsFixed(0)}',
+                formatCurrency(earnings['total']),
                 Icons.attach_money,
                 const Color(0xFF36B37E),
                 isLarge: true,
@@ -286,7 +287,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                   Expanded(
                     child: _buildStatsCard(
                       'Comisión Admin',
-                      '\$${earnings['admin'].toStringAsFixed(0)}',
+                      formatCurrency(earnings['admin']),
                       Icons.admin_panel_settings_outlined,
                       const Color(0xFF0052CC),
                     ),
@@ -295,7 +296,7 @@ class _ReportsScreenState extends State<ReportsScreen>
                   Expanded(
                     child: _buildStatsCard(
                       'Comisión Técnicos',
-                      '\$${earnings['technicians'].toStringAsFixed(0)}',
+                      formatCurrency(earnings['technicians']),
                       Icons.engineering_outlined,
                       const Color(0xFFFFAB00),
                     ),

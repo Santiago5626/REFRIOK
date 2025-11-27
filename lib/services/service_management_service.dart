@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:printing/printing.dart';
 import 'package:flutter/material.dart';
 import 'dart:io';
+import 'dart:typed_data';
 import '../models/service.dart';
 import '../models/user.dart' as app_user;
 import 'notification_service.dart';
@@ -859,7 +860,7 @@ class ServiceManagementService {
   }
 
   // Generar factura para un servicio completado
-  Future<File?> generateInvoice(String serviceId) async {
+  Future<Uint8List?> generateInvoice(String serviceId) async {
     try {
       DocumentSnapshot serviceDoc =
           await _firestore.collection('services').doc(serviceId).get();
@@ -895,7 +896,7 @@ class ServiceManagementService {
       });
 
       final invoiceService = InvoiceService();
-      File invoice = await invoiceService.generateInvoice(service);
+      Uint8List invoice = await invoiceService.generateInvoice(service);
 
       return invoice;
     } catch (e) {
@@ -940,15 +941,15 @@ class ServiceManagementService {
         return;
       }
 
-      File? invoice = await generateInvoice(serviceId);
+      Uint8List? invoice = await generateInvoice(serviceId);
       if (invoice != null) {
         if (context.mounted) {
           await Printing.layoutPdf(
-            onLayout: (_) => invoice.readAsBytes(),
+            onLayout: (_) => Future.value(invoice),
           );
           ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Factura guardada en: ${invoice.path}'),
+            const SnackBar(
+              content: Text('Factura generada exitosamente'),
               backgroundColor: Colors.green,
             ),
           );

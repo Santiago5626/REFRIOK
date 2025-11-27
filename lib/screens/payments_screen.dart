@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import '../services/payment_service.dart';
 import '../services/auth_service.dart';
 import '../models/user.dart';
+import '../utils/currency_formatter.dart';
 
 class PaymentsScreen extends StatefulWidget {
   const PaymentsScreen({super.key});
@@ -136,7 +137,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                             style: TextStyle(fontWeight: FontWeight.bold),
                           ),
                           Text(
-                            '\$${pendingAmount.toStringAsFixed(0)}',
+                            formatCurrency(pendingAmount),
                             style: const TextStyle(
                               fontSize: 18,
                               fontWeight: FontWeight.bold,
@@ -211,7 +212,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                         return ListTile(
                           dense: true,
                           leading: const Icon(Icons.payment, color: Colors.green),
-                          title: Text('\$${amount.toStringAsFixed(0)}'),
+                          title: Text(formatCurrency(amount)),
                           subtitle: Text(_formatDate(paymentDate)),
                           contentPadding: EdgeInsets.zero,
                         );
@@ -247,7 +248,7 @@ class _PaymentsScreenState extends State<PaymentsScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Comisiones pendientes: \$${pendingAmount.toStringAsFixed(0)}',
+                      'Comisiones pendientes: ${formatCurrency(pendingAmount)}',
                       style: const TextStyle(fontWeight: FontWeight.bold),
                     ),
                     const SizedBox(height: 16),

@@ -244,7 +244,9 @@ class _ModernNotificationOverlayState extends State<ModernNotificationOverlay>
     // Auto-dismiss si no es loading
     if (widget.type != NotificationType.loading) {
       Future.delayed(widget.autoDismissDuration, () {
-        _dismiss();
+        if (mounted) {
+          _dismiss();
+        }
       });
     }
   }
@@ -256,8 +258,15 @@ class _ModernNotificationOverlayState extends State<ModernNotificationOverlay>
   }
 
   Future<void> _dismiss() async {
-    await _overlayController.reverse();
-    widget.onDismiss();
+    if (!mounted) return;
+    try {
+      await _overlayController.reverse();
+      if (mounted) {
+        widget.onDismiss();
+      }
+    } catch (e) {
+      // Ignorar errores de animación si el widget se desmontó
+    }
   }
 
   @override

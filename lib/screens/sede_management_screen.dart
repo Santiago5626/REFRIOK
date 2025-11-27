@@ -4,6 +4,7 @@ import '../models/sede.dart';
 import '../services/sede_service.dart';
 import '../models/user.dart' as app_user;
 import '../services/auth_service.dart';
+import '../utils/currency_formatter.dart';
 
 class SedeManagementScreen extends StatefulWidget {
   const SedeManagementScreen({super.key});
@@ -20,32 +21,6 @@ class _SedeManagementScreenState extends State<SedeManagementScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF8F9FA),
-      appBar: AppBar(
-        title: const Text(
-          'Gestión de Sedes',
-          style: TextStyle(
-            color: Color(0xFF172B4D),
-            fontWeight: FontWeight.bold,
-            fontSize: 20,
-          ),
-        ),
-        backgroundColor: Colors.white,
-        surfaceTintColor: Colors.white,
-        elevation: 0,
-        centerTitle: false,
-        iconTheme: const IconThemeData(color: Color(0xFF172B4D)),
-        actions: [
-          IconButton(
-            onPressed: () => _showCreateSedeDialog(context),
-            icon: const Icon(Icons.add_location_alt_outlined, color: Color(0xFF0052CC)),
-            tooltip: 'Crear Nueva Sede',
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFF4F5F7),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
-      ),
       body: StreamBuilder<List<Sede>>(
         stream: _sedeService.getAllSedes(),
         builder: (context, snapshot) {
@@ -189,7 +164,7 @@ class _SedeManagementScreenState extends State<SedeManagementScreen> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    '\$${sede.valorBaseRevision.toStringAsFixed(0)}',
+                    formatCurrency(sede.valorBaseRevision),
                     style: const TextStyle(
                       color: Color(0xFF0052CC),
                       fontWeight: FontWeight.bold,

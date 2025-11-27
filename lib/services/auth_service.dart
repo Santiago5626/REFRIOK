@@ -1,10 +1,13 @@
 import 'package:firebase_auth/firebase_auth.dart' hide EmailAuthProvider;
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../firebase_options.dart';
 import '../models/user.dart' as app_user;
 import '../models/service.dart';
 import 'notification_service.dart';
+import 'dart:math';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -430,7 +433,7 @@ class AuthService {
   }
 
   // Cambiar contraseña creando nuevo usuario
-  Future<bool> changePassword(String email, String newPassword) async {
+  Future<bool> changePassword(String email, String newPassword, {bool mustChangePassword = false}) async {
     try {
       // Buscar el usuario por email en Firestore
       QuerySnapshot userQuery = await _firestore
@@ -456,13 +459,14 @@ class AuthService {
         password: newPassword,
       );
 
-      // Actualizar el documento en Firestore con el nuevo UID
+      // Actualizar el documento en Firestore con el nuevo UID y el flag mustChangePassword
       await _firestore
           .collection('users')
           .doc(newUserCredential.user!.uid)
           .set({
         ...userData,
         'id': newUserCredential.user!.uid,
+        'mustChangePassword': mustChangePassword,
       });
 
       // Eliminar el documento anterior
@@ -496,6 +500,78 @@ class AuthService {
     }
   }
 
+  // Actualizar contraseña del usuario actual
+  Future<bool> updateMyPassword(String newPassword) async {
+    try {
+      User? user = _auth.currentUser;
+      if (user == null) throw 'No hay sesión activa';
+
+      await user.updatePassword(newPassword);
+      
+      // Actualizar flag en Firestore
+      await _firestore.collection('users').doc(user.uid).update({
+        'mustChangePassword': false,
+      });
+
+      return true;
+    } catch (e) {
+      print('Error al actualizar mi contraseña: $e');
+      if (e is FirebaseAuthException) {
+        switch (e.code) {
+          case 'weak-password':
+            throw 'La contraseña debe tener al menos 6 caracteres';
+          case 'requires-recent-login':
+            throw 'Por seguridad, debes iniciar sesión nuevamente antes de cambiar la contraseña';
+          default:
+            throw e.message ?? 'Error al actualizar contraseña';
+        }
+      }
+      return false;
+    }
+  }
+
+  // Generar contraseña aleatoria
+  String _generateRandomPassword() {
+    const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#\$%^&*';
+    final rnd = Random();
+    return String.fromCharCodes(Iterable.generate(
+        8, (_) => chars.codeUnitAt(rnd.nextInt(chars.length))));
+  }
+
+  // Restablecer contraseña con una temporal usando Backend
+  Future<String?> resetPasswordWithTemporary(String email) async {
+    try {
+      String tempPassword = _generateRandomPassword();
+      
+      // Llamar al backend para cambiar la contraseña en Firebase Auth
+      // Asegúrate de que tu backend tenga este endpoint implementado
+      final response = await http.post(
+        Uri.parse('https://refriok.onrender.com/resetPassword'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({
+          'email': email,
+          'newPassword': tempPassword,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+         // Actualizar flag mustChangePassword en Firestore
+         QuerySnapshot userQuery = await _firestore.collection('users').where('email', isEqualTo: email).get();
+         if (userQuery.docs.isNotEmpty) {
+           await userQuery.docs.first.reference.update({'mustChangePassword': true});
+         }
+         
+         return tempPassword;
+      } else {
+        print('Error del backend: ${response.body}');
+        throw 'No se pudo actualizar la contraseña. Verifica el backend.';
+      }
+    } catch (e) {
+      print('Error al generar contraseña temporal: $e');
+      return null;
+    }
+  }
+
   // Inhabilitar/Habilitar usuario
   Future<bool> toggleUserStatus(String userId, bool isBlocked) async {
     try {
@@ -505,6 +581,65 @@ class AuthService {
       return true;
     } catch (e) {
       print('Error al cambiar estado del usuario: $e');
+      return false;
+    }
+  }
+
+  // Actualizar información del usuario
+  Future<bool> updateUser({
+    required String userId,
+    required String name,
+    required String email,
+    String? sedeId,
+  }) async {
+    try {
+      // Obtener datos actuales del usuario
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(userId).get();
+      
+      if (!userDoc.exists) {
+        throw 'Usuario no encontrado';
+      }
+
+      Map<String, dynamic> userData = userDoc.data() as Map<String, dynamic>;
+      String oldEmail = userData['email'];
+
+      // Preparar datos a actualizar
+      Map<String, dynamic> updateData = {
+        'name': name,
+        'email': email,
+      };
+
+      // Actualizar sedeId solo si se proporciona (para técnicos)
+      if (sedeId != null) {
+        updateData['sedeId'] = sedeId;
+      } else if (!userData['isAdmin']) {
+        // Si es técnico y no se proporciona sedeId, mantener el actual o null
+        if (userData.containsKey('sedeId')) {
+          updateData['sedeId'] = userData['sedeId'];
+        }
+      }
+
+      // Si el email cambió, verificar que no exista otro usuario con ese email
+      if (oldEmail != email) {
+        QuerySnapshot existingUsers = await _firestore
+            .collection('users')
+            .where('email', isEqualTo: email)
+            .get();
+
+        if (existingUsers.docs.isNotEmpty) {
+          throw 'Ya existe un usuario con este correo electrónico';
+        }
+      }
+
+      // Actualizar en Firestore
+      await _firestore.collection('users').doc(userId).update(updateData);
+
+      return true;
+    } catch (e) {
+      print('Error al actualizar usuario: $e');
+      if (e is String) {
+        rethrow;
+      }
       return false;
     }
   }

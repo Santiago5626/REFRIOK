@@ -5,6 +5,7 @@ import '../models/sede.dart';
 import '../services/auth_service.dart';
 import '../services/sede_service.dart';
 import '../utils/dialog_utils.dart';
+import '../utils/currency_formatter.dart';
 
 class UsersManagementScreen extends StatefulWidget {
   const UsersManagementScreen({super.key});
@@ -276,7 +277,7 @@ class _UsersManagementScreenState extends State<UsersManagementScreen> {
                   const Icon(Icons.attach_money, size: 16, color: Color(0xFF5E6C84)),
                   const SizedBox(width: 8),
                   Text(
-                    'Ganancias totales: \$${user.totalEarnings.toStringAsFixed(0)}',
+                    'Ganancias totales: ${formatCurrency(user.totalEarnings)}',
                     style: const TextStyle(
                       fontSize: 14,
                       color: Color(0xFF5E6C84),

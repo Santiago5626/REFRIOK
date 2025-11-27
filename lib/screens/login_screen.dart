@@ -4,6 +4,7 @@ import '../services/notification_service.dart';
 import '../models/user.dart' as app_user;
 import 'home_screen.dart';
 import '../theme/app_theme.dart';
+import 'change_password_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -47,6 +48,14 @@ class _LoginScreenState extends State<LoginScreen> {
           if (user.isBlocked) {
             if (!mounted) return;
             _showBlockedDialog();
+          } else if (user.mustChangePassword) {
+            if (!mounted) return;
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ChangePasswordScreen(email: user.email),
+              ),
+            );
           } else {
             if (!mounted) return;
             

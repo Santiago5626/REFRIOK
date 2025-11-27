@@ -11,9 +11,8 @@ import 'login_screen.dart';
 import 'notifications_screen.dart';
 import 'add_service_screen.dart';
 import 'reports_screen.dart';
-import 'users_management_screen.dart';
-import 'sede_management_screen.dart';
 import 'admin/payment_management_screen.dart';
+import 'admin/admin_management_screen.dart';
 import '../theme/app_theme.dart';
 import '../widgets/service_card.dart';
 
@@ -30,6 +29,7 @@ class _HomeScreenState extends State<HomeScreen> {
   final NotificationService _notificationService = NotificationService();
   app_user.User? _currentUser;
   int _selectedIndex = 0;
+  DateTime? _selectedDate;
 
   @override
   void initState() {
@@ -185,21 +185,22 @@ class _HomeScreenState extends State<HomeScreen> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    _currentUser!.isAdmin ? 'Panel Admin' : 'Mis Servicios',
+                    _currentUser!.isAdmin ? 'Administrador' : 'Técnico',
+                    style: const TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: Color(0xFF5E6C84),
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    _currentUser!.name,
                     style: const TextStyle(
                       fontSize: 20,
                       fontWeight: FontWeight.bold,
                       color: Color(0xFF172B4D),
                       letterSpacing: -0.5,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    _currentUser!.name.split(' ')[0],
-                    style: TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w500,
-                      color: Colors.grey[600],
                     ),
                   ),
                 ],
@@ -263,9 +264,10 @@ class _HomeScreenState extends State<HomeScreen> {
         children: _currentUser!.isAdmin
             ? [
                 _buildAdminServicesTab(),
+                _buildMyServicesTab(), // Nueva pestaña para servicios del admin
                 _buildPaymentsTab(),
-                const UsersManagementScreen(),
-                const SedeManagementScreen(),
+                const AdminManagementScreen(),
+                ProfileScreen(initialUser: _currentUser!, onSignOut: _signOut),
               ]
             : [
                 _buildMyServicesTab(),
@@ -282,48 +284,135 @@ class _HomeScreenState extends State<HomeScreen> {
       children: [
         Padding(
           padding: const EdgeInsets.all(16.0),
-          child: Row(
+          child: Column(
             children: [
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AddServiceScreen(),
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const AddServiceScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.add),
+                      label: const Text('Nuevo Servicio'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBlue,
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.add),
-                  label: const Text('Nuevo Servicio'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.primaryBlue,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    ),
                   ),
-                ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const ReportsScreen(),
+                          ),
+                        );
+                      },
+                      icon: const Icon(Icons.analytics_outlined),
+                      label: const Text('Reportes'),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.white,
+                        foregroundColor: AppTheme.primaryBlue,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        elevation: 0,
+                        side: const BorderSide(color: AppTheme.primaryBlue),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(width: 16),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const ReportsScreen(),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: () async {
+                        final DateTime? picked = await showDatePicker(
+                          context: context,
+                          initialDate: _selectedDate ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime(2030),
+                          builder: (context, child) {
+                            return Theme(
+                              data: Theme.of(context).copyWith(
+                                colorScheme: const ColorScheme.light(
+                                  primary: AppTheme.primaryBlue, // Header background color
+                                  onPrimary: Colors.white, // Header text color
+                                  onSurface: AppTheme.textPrimary, // Body text color
+                                ),
+                                textButtonTheme: TextButtonThemeData(
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppTheme.primaryBlue, // Button text color
+                                  ),
+                                ),
+                                datePickerTheme: DatePickerThemeData(
+                                  headerBackgroundColor: AppTheme.primaryBlue,
+                                  headerForegroundColor: Colors.white,
+                                  confirmButtonStyle: ElevatedButton.styleFrom(
+                                    backgroundColor: AppTheme.primaryBlue,
+                                    foregroundColor: Colors.white,
+                                    textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                                    shape: RoundedRectangleBorder(
+                                      borderRadius: BorderRadius.circular(8),
+                                    ),
+                                  ),
+                                  cancelButtonStyle: TextButton.styleFrom(
+                                    foregroundColor: AppTheme.textSecondary,
+                                    textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                                  ),
+                                ),
+                              ),
+                              child: child!,
+                            );
+                          },
+                        );
+                        if (picked != null) {
+                          setState(() {
+                            _selectedDate = picked;
+                          });
+                        }
+                      },
+                      icon: Icon(Icons.calendar_today, 
+                        color: _selectedDate != null ? AppTheme.primaryBlue : Colors.grey),
+                      label: Text(
+                        _selectedDate == null 
+                            ? 'Filtrar por fecha' 
+                            : 'Fecha: ${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}',
+                        style: TextStyle(
+                          color: _selectedDate != null ? AppTheme.primaryBlue : Colors.grey[700],
+                        ),
                       ),
-                    );
-                  },
-                  icon: const Icon(Icons.analytics_outlined),
-                  label: const Text('Reportes'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white,
-                    foregroundColor: AppTheme.primaryBlue,
-                    padding: const EdgeInsets.symmetric(vertical: 16),
-                    elevation: 0,
-                    side: const BorderSide(color: AppTheme.primaryBlue),
+                      style: OutlinedButton.styleFrom(
+                        side: BorderSide(
+                          color: _selectedDate != null ? AppTheme.primaryBlue : Colors.grey[300]!,
+                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                    ),
                   ),
-                ),
+                  if (_selectedDate != null) ...[
+                    const SizedBox(width: 8),
+                    IconButton(
+                      icon: const Icon(Icons.clear, color: Colors.grey),
+                      onPressed: () {
+                        setState(() {
+                          _selectedDate = null;
+                        });
+                      },
+                      tooltip: 'Limpiar filtro',
+                    ),
+                  ],
+                ],
               ),
             ],
           ),
@@ -341,6 +430,15 @@ class _HomeScreenState extends State<HomeScreen> {
               }
 
               List<Service> services = snapshot.data ?? [];
+              
+              // Aplicar filtro de fecha si existe
+              if (_selectedDate != null) {
+                services = services.where((s) {
+                  return s.scheduledFor.year == _selectedDate!.year &&
+                         s.scheduledFor.month == _selectedDate!.month &&
+                         s.scheduledFor.day == _selectedDate!.day;
+                }).toList();
+              }
 
               if (services.isEmpty) {
                 return _buildEmptyState(
@@ -519,36 +617,52 @@ class _HomeScreenState extends State<HomeScreen> {
     final BuildContext currentContext = context;
     List<app_user.User> allUsers = await _authService.getUsers();
 
-    List<app_user.User> technicians = allUsers
+    // Incluir tanto técnicos como administradores
+    List<app_user.User> availableUsers = allUsers
         .where((user) =>
-            !user.isAdmin &&
-            (service.sedeId == null || user.sedeId == service.sedeId))
+            (service.sedeId == null || user.sedeId == service.sedeId || user.isAdmin))
         .toList();
 
     app_user.User? selectedTechnician = await showDialog<app_user.User>(
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Asignar Técnico'),
+          title: const Text('Asignar Usuario'),
           content: SizedBox(
             width: double.maxFinite,
-            child: technicians.isEmpty
-                ? const Text('No hay técnicos disponibles para esta sede.')
+            child: availableUsers.isEmpty
+                ? const Text('No hay usuarios disponibles para esta sede.')
                 : ListView.builder(
                     shrinkWrap: true,
-                    itemCount: technicians.length,
+                    itemCount: availableUsers.length,
                     itemBuilder: (context, index) {
+                      final user = availableUsers[index];
                       return ListTile(
                         leading: CircleAvatar(
-                          backgroundColor: AppTheme.primaryBlue.withValues(alpha: 0.1),
+                          backgroundColor: user.isAdmin 
+                              ? const Color(0xFF0052CC).withValues(alpha: 0.1)
+                              : AppTheme.primaryBlue.withValues(alpha: 0.1),
                           child: Text(
-                            technicians[index].name[0].toUpperCase(),
-                            style: const TextStyle(color: AppTheme.primaryBlue),
+                            user.name[0].toUpperCase(),
+                            style: TextStyle(
+                              color: user.isAdmin 
+                                  ? const Color(0xFF0052CC)
+                                  : AppTheme.primaryBlue,
+                            ),
                           ),
                         ),
-                        title: Text(technicians[index].name),
+                        title: Text(user.name),
+                        subtitle: Text(
+                          user.isAdmin ? 'Administrador' : 'Técnico',
+                          style: TextStyle(
+                            fontSize: 12,
+                            color: user.isAdmin 
+                                ? const Color(0xFF0052CC)
+                                : const Color(0xFF5E6C84),
+                          ),
+                        ),
                         onTap: () {
-                          Navigator.of(context).pop(technicians[index]);
+                          Navigator.of(context).pop(user);
                         },
                       );
                     },
@@ -620,10 +734,11 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildBottomNavigationBar() {
     final items = _currentUser!.isAdmin
         ? [
-            _NavItem(Icons.grid_view_rounded, Icons.grid_view, 'Servicios'),
+            _NavItem(Icons.grid_view_rounded, Icons.grid_view, 'Inicio'),
+            _NavItem(Icons.assignment_outlined, Icons.assignment, 'Mis Servicios'),
             _NavItem(Icons.payments_outlined, Icons.payments_rounded, 'Pagos'),
-            _NavItem(Icons.people_outline_rounded, Icons.people_rounded, 'Usuarios'),
-            _NavItem(Icons.location_city_outlined, Icons.location_city_rounded, 'Sedes'),
+            _NavItem(Icons.admin_panel_settings_outlined, Icons.admin_panel_settings, 'Admin'),
+            _NavItem(Icons.person_outline_rounded, Icons.person_rounded, 'Perfil'),
           ]
         : [
             _NavItem(Icons.home_outlined, Icons.home_rounded, 'Inicio'),

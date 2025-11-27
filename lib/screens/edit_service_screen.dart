@@ -76,6 +76,18 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
       initialDate: _selectedDate ?? DateTime.now(),
       firstDate: DateTime.now(),
       lastDate: DateTime.now().add(const Duration(days: 365)),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0052CC),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF172B4D),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -89,6 +101,18 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
     final TimeOfDay? picked = await showTimePicker(
       context: context,
       initialTime: _selectedTime ?? TimeOfDay.now(),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF0052CC),
+              onPrimary: Colors.white,
+              onSurface: Color(0xFF172B4D),
+            ),
+          ),
+          child: child!,
+        );
+      },
     );
 
     if (picked != null) {
@@ -107,7 +131,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Por favor seleccione fecha y hora'),
-          backgroundColor: Colors.red,
+          backgroundColor: Color(0xFFFF5630),
         ),
       );
       return;
@@ -144,18 +168,17 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Servicio actualizado exitosamente'),
-              backgroundColor: Colors.green,
+              backgroundColor: Color(0xFF36B37E),
             ),
           );
-          Navigator.pop(
-              context, true); // Retornar true para indicar que se actualizó
+          Navigator.pop(context, true);
         }
       } else {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
               content: Text('Error al actualizar el servicio'),
-              backgroundColor: Colors.red,
+              backgroundColor: Color(0xFFFF5630),
             ),
           );
         }
@@ -165,7 +188,7 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: const Color(0xFFFF5630),
           ),
         );
       }
@@ -181,41 +204,54 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFF8F9FA),
       appBar: AppBar(
-        title: const Text('Editar Servicio'),
-        backgroundColor: Colors.blue,
-        foregroundColor: Colors.white,
+        title: const Text(
+          'Editar Servicio',
+          style: TextStyle(
+            color: Color(0xFF172B4D),
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+          ),
+        ),
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        elevation: 0,
+        centerTitle: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Color(0xFF172B4D)),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CircularProgressIndicator(color: Color(0xFF0052CC)))
           : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(20),
               child: Form(
                 key: _formKey,
                 child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    // Información del estado
                     if (widget.service.status != ServiceStatus.pending)
                       Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        margin: const EdgeInsets.only(bottom: 16),
+                        padding: const EdgeInsets.all(16),
+                        margin: const EdgeInsets.only(bottom: 20),
                         decoration: BoxDecoration(
-                          color: Colors.orange[50],
-                          borderRadius: BorderRadius.circular(8),
-                          border: Border.all(color: Colors.orange[200]!),
+                          color: const Color(0xFFFFAB00).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: const Color(0xFFFFAB00).withValues(alpha: 0.3)),
                         ),
                         child: Row(
                           children: [
-                            Icon(Icons.warning, color: Colors.orange[700]),
-                            const SizedBox(width: 8),
+                            const Icon(Icons.warning_amber_rounded, color: Color(0xFFFFAB00)),
+                            const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 'Este servicio está ${_getStatusText(widget.service.status)}. Los cambios pueden afectar el flujo de trabajo.',
-                                style: TextStyle(
-                                  color: Colors.orange[700],
+                                style: const TextStyle(
+                                  color: Color(0xFF172B4D),
                                   fontWeight: FontWeight.bold,
+                                  fontSize: 14,
                                 ),
                               ),
                             ),
@@ -223,256 +259,301 @@ class _EditServiceScreenState extends State<EditServiceScreen> {
                         ),
                       ),
 
-                    // Título
-                    TextFormField(
-                      controller: _titleController,
-                      decoration: const InputDecoration(
-                        labelText: 'Título del Servicio',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.title),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor ingrese un título';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Descripción
-                    TextFormField(
-                      controller: _descriptionController,
-                      decoration: const InputDecoration(
-                        labelText: 'Descripción',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.description),
-                      ),
-                      maxLines: 3,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor ingrese una descripción';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Ubicación
-                    TextFormField(
-                      controller: _locationController,
-                      decoration: const InputDecoration(
-                        labelText: 'Ubicación',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.location_on),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor ingrese la ubicación';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Información del cliente
-                    const Text(
-                      'Información del Cliente',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    // Nombre del cliente
-                    TextFormField(
-                      controller: _clientNameController,
-                      decoration: const InputDecoration(
-                        labelText: 'Nombre del Cliente',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.person),
-                      ),
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor ingrese el nombre del cliente';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Teléfono del cliente
-                    TextFormField(
-                      controller: _clientPhoneController,
-                      decoration: const InputDecoration(
-                        labelText: 'Teléfono del Cliente',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.phone),
-                      ),
-                      keyboardType: TextInputType.phone,
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor ingrese el teléfono del cliente';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Fecha y hora
-                    const Text(
-                      'Programación',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-
-                    Row(
+                    _buildSection(
+                      title: 'Información del Servicio',
+                      icon: Icons.info_outline,
                       children: [
-                        Expanded(
-                          child: InkWell(
-                            onTap: _selectDate,
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.calendar_today),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _selectedDate != null
-                                        ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
-                                        : 'Seleccionar fecha',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                        _buildTextField(
+                          controller: _titleController,
+                          label: 'Título del Servicio',
+                          icon: Icons.title,
+                          validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
                         ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: InkWell(
-                            onTap: _selectTime,
-                            child: Container(
-                              padding: const EdgeInsets.all(16),
-                              decoration: BoxDecoration(
-                                border: Border.all(color: Colors.grey),
-                                borderRadius: BorderRadius.circular(4),
-                              ),
-                              child: Row(
-                                children: [
-                                  const Icon(Icons.access_time),
-                                  const SizedBox(width: 8),
-                                  Text(
-                                    _selectedTime != null
-                                        ? '${_selectedTime!.hour}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
-                                        : 'Seleccionar hora',
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _descriptionController,
+                          label: 'Descripción',
+                          icon: Icons.description_outlined,
+                          maxLines: 3,
+                          validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _locationController,
+                          label: 'Ubicación',
+                          icon: Icons.location_on_outlined,
+                          validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
                         ),
                       ],
                     ),
-                    const SizedBox(height: 16),
+                    const SizedBox(height: 20),
 
-                    // Precio base
-                    TextFormField(
-                      controller: _basePriceController,
-                      decoration: const InputDecoration(
-                        labelText: 'Precio Base',
-                        border: OutlineInputBorder(),
-                        prefixIcon: Icon(Icons.attach_money),
-                        prefixText: '\$',
-                        helperText:
-                            'Si es mayor a \$30.000, se considerará servicio completo',
-                      ),
-                      keyboardType: TextInputType.number,
-                      inputFormatters: [
-                        FilteringTextInputFormatter.digitsOnly,
+                    _buildSection(
+                      title: 'Información del Cliente',
+                      icon: Icons.person_outline,
+                      children: [
+                        _buildTextField(
+                          controller: _clientNameController,
+                          label: 'Nombre del Cliente',
+                          icon: Icons.person,
+                          validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
+                        ),
+                        const SizedBox(height: 16),
+                        _buildTextField(
+                          controller: _clientPhoneController,
+                          label: 'Teléfono',
+                          icon: Icons.phone_outlined,
+                          keyboardType: TextInputType.phone,
+                          validator: (value) => value?.isEmpty ?? true ? 'Campo requerido' : null,
+                        ),
                       ],
-                      validator: (value) {
-                        if (value == null || value.trim().isEmpty) {
-                          return 'Por favor ingrese el precio base';
-                        }
-                        final price = double.tryParse(value);
-                        if (price == null || price <= 0) {
-                          return 'Por favor ingrese un precio válido';
-                        }
-                        return null;
-                      },
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
-                    // Información de comisiones
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        color: Colors.blue[50],
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: Colors.blue[200]!),
-                      ),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'Información de Comisiones',
-                            style: TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 16,
+                    _buildSection(
+                      title: 'Programación',
+                      icon: Icons.calendar_today_outlined,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: _buildDateTimePicker(
+                                icon: Icons.calendar_today,
+                                value: _selectedDate != null
+                                    ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}'
+                                    : 'Fecha',
+                                onTap: _selectDate,
+                              ),
                             ),
-                          ),
-                          const SizedBox(height: 8),
-                          const Text('• Revisión: \$30.000 fijo'),
-                          const Text('• Servicio completo: Precio base'),
-                          const Text('• Técnico: 70% del precio final'),
-                          const Text('• Administrador: 30% del precio final'),
-                        ],
-                      ),
+                            const SizedBox(width: 16),
+                            Expanded(
+                              child: _buildDateTimePicker(
+                                icon: Icons.access_time,
+                                value: _selectedTime != null
+                                    ? '${_selectedTime!.hour}:${_selectedTime!.minute.toString().padLeft(2, '0')}'
+                                    : 'Hora',
+                                onTap: _selectTime,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
                     ),
-                    const SizedBox(height: 24),
+                    const SizedBox(height: 20),
 
-                    // Botón de actualizar
+                    _buildSection(
+                      title: 'Precio',
+                      icon: Icons.attach_money,
+                      children: [
+                      _buildTextField(
+                          controller: _basePriceController,
+                          label: 'Precio Base',
+                          icon: Icons.payments_outlined,
+                          prefixText: '\$ ',
+                          keyboardType: TextInputType.number,
+                          validator: (value) {
+                            if (value?.isEmpty ?? true) return 'Campo requerido';
+                            if (double.tryParse(value!) == null || double.parse(value!) <= 0) {
+                              return 'Precio inválido';
+                            }
+                            return null;
+                          },
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 32),
+
                     SizedBox(
-                      width: double.infinity,
+                      height: 56,
                       child: ElevatedButton(
                         onPressed: _isLoading ? null : _updateService,
                         style: ElevatedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          backgroundColor: Colors.blue,
+                          backgroundColor: const Color(0xFF0052CC),
+                          foregroundColor: Colors.white,
+                          elevation: 4,
+                          shadowColor: const Color(0xFF0052CC).withValues(alpha: 0.4),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16),
+                          ),
                         ),
                         child: _isLoading
                             ? const SizedBox(
-                                height: 20,
-                                width: 20,
+                                height: 24,
+                                width: 24,
                                 child: CircularProgressIndicator(
-                                  strokeWidth: 2,
+                                  strokeWidth: 2.5,
                                   color: Colors.white,
                                 ),
                               )
-                            : const Text(
-                                'Actualizar Servicio',
-                                style: TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white,
-                                ),
+                            : const Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(Icons.save_outlined, size: 24),
+                                  SizedBox(width: 12),
+                                  Text(
+                                    'Actualizar Servicio',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ],
                               ),
                       ),
                     ),
+                    const SizedBox(height: 32),
                   ],
                 ),
               ),
             ),
     );
   }
+
+  Widget _buildSection({
+    required String title,
+    required IconData icon,
+    required List<Widget> children,
+  }) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(
+            color: const Color(0xFF172B4D).withValues(alpha: 0.06),
+            blurRadius: 20,
+            offset: const Offset(0, 8),
+          ),
+          BoxShadow(
+            color: const Color(0xFF172B4D).withValues(alpha: 0.04),
+            blurRadius: 4,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(10),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF0052CC).withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Icon(icon, color: const Color(0xFF0052CC), size: 24),
+              ),
+              const SizedBox(width: 16),
+              Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF172B4D),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String label,
+    required IconData icon,
+    String? helperText,
+    String? prefixText,
+    int maxLines = 1,
+    TextInputType? keyboardType,
+    String? Function(String?)? validator,
+  }) {
+    return TextFormField(
+      controller: controller,
+      maxLines: maxLines,
+      keyboardType: keyboardType,
+      style: const TextStyle(
+        color: Color(0xFF172B4D),
+        fontWeight: FontWeight.w500,
+      ),
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: const TextStyle(color: Color(0xFF5E6C84)),
+        helperText: helperText,
+        helperStyle: const TextStyle(color: Color(0xFF5E6C84)),
+        prefixText: prefixText,
+        prefixStyle: const TextStyle(
+          color: Color(0xFF172B4D),
+          fontWeight: FontWeight.bold,
+        ),
+        prefixIcon: Icon(icon, color: const Color(0xFF0052CC)),
+        filled: true,
+        fillColor: const Color(0xFFF4F5F7),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFF0052CC), width: 1.5),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFFF5630), width: 1.5),
+        ),
+        focusedErrorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: Color(0xFFFF5630), width: 1.5),
+        ),
+      ),
+      validator: validator,
+    );
+  }
+
+  Widget _buildDateTimePicker({
+    required IconData icon,
+    required String value,
+    required VoidCallback onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFFF4F5F7),
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(icon, color: const Color(0xFF0052CC), size: 20),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Text(
+                value,
+                style: const TextStyle(
+                  color: Color(0xFF172B4D),
+                  fontWeight: FontWeight.w500,
+                ),
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+
 
   String _getStatusText(ServiceStatus status) {
     switch (status) {

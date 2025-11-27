@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/user.dart';
 import '../services/payment_service.dart';
+import '../utils/currency_formatter.dart';
 
 class ProfileScreen extends StatefulWidget {
   final User initialUser;
@@ -215,7 +216,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '\$${(totalEarnings + pendingEarnings).toStringAsFixed(0)}',
+                formatCurrency(totalEarnings + pendingEarnings),
                 style: const TextStyle(
                   color: Colors.white,
                   fontSize: 36,
@@ -248,7 +249,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         const SizedBox(height: 4),
         Text(
-          '\$${amount.toStringAsFixed(0)}',
+          formatCurrency(amount),
           style: TextStyle(
             color: color,
             fontSize: 18,
@@ -279,7 +280,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               bool hasDebt = debt > 0;
               return _buildModernStatCard(
                 'Deuda',
-                hasDebt ? '\$${debt.toStringAsFixed(0)}' : 'Al día',
+                hasDebt ? formatCurrency(debt) : 'Al día',
                 hasDebt ? Icons.warning_amber_rounded : Icons.thumb_up_alt_outlined,
                 hasDebt ? const Color(0xFFFF5630) : const Color(0xFF0052CC),
               );

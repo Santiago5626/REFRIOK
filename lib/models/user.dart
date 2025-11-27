@@ -11,6 +11,7 @@ class User {
   final double totalEarnings;
   final int completedServices;
   final String? sedeId;
+  final bool mustChangePassword;
 
   User({
     required this.id,
@@ -25,6 +26,7 @@ class User {
     this.totalEarnings = 0,
     this.completedServices = 0,
     this.sedeId,
+    this.mustChangePassword = false,
   });
 
   factory User.fromMap(Map<String, dynamic> map) {
@@ -45,6 +47,7 @@ class User {
       totalEarnings: (map['totalEarnings'] ?? 0.0).toDouble(),
       completedServices: map['completedServices'] ?? 0,
       sedeId: map['sedeId'],
+      mustChangePassword: map['mustChangePassword'] ?? false,
     );
   }
 
@@ -62,6 +65,7 @@ class User {
       'totalEarnings': totalEarnings,
       'completedServices': completedServices,
       'sedeId': sedeId,
+      'mustChangePassword': mustChangePassword,
     };
   }
 
@@ -78,6 +82,7 @@ class User {
     double? totalEarnings,
     int? completedServices,
     String? sedeId,
+    bool? mustChangePassword,
   }) {
     return User(
       id: id ?? this.id,
@@ -92,6 +97,7 @@ class User {
       totalEarnings: totalEarnings ?? this.totalEarnings,
       completedServices: completedServices ?? this.completedServices,
       sedeId: sedeId ?? this.sedeId,
+      mustChangePassword: mustChangePassword ?? this.mustChangePassword,
     );
   }
 

@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:open_file/open_file.dart';
+import '../utils/download_helper.dart';
 import '../models/service.dart';
 import '../models/user.dart' as app_user;
 import '../services/service_management_service.dart';
@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/invoice_service.dart';
 import '../utils/dialog_utils.dart';
 import '../theme/app_theme.dart';
+import '../utils/currency_formatter.dart';
 import 'edit_service_screen.dart';
 
 class ServiceDetailScreen extends StatefulWidget {
@@ -88,8 +89,9 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
         ),
         iconTheme: const IconThemeData(color: Color(0xFF172B4D)),
         actions: [
-          if (_currentService.status == ServiceStatus.completed ||
-              _currentService.status == ServiceStatus.paid)
+          if (_currentUser?.isAdmin == true &&
+              (_currentService.status == ServiceStatus.completed ||
+               _currentService.status == ServiceStatus.paid))
             IconButton(
               icon: const Icon(Icons.download_rounded),
               tooltip: 'Descargar Factura',
@@ -512,23 +514,23 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
           if (_currentService.serviceType != null) ...[
             _buildDetailItem('Tipo', _currentService.serviceType == ServiceType.revision ? 'Revisión' : 'Servicio Completo'),
             const SizedBox(height: 12),
-            _buildDetailItem('Precio Final', '\$${_currentService.finalPrice.toStringAsFixed(0)}', isBold: true),
+            _buildDetailItem('Precio Final', formatCurrency(_currentService.finalPrice), isBold: true),
             const SizedBox(height: 12),
             if (_currentUser!.isAdmin)
-              _buildDetailItem('Comisión Admin (30%)', '\$${_currentService.adminCommission.toStringAsFixed(0)}', color: const Color(0xFF0052CC))
+              _buildDetailItem('Comisión Admin (30%)', formatCurrency(_currentService.adminCommission), color: const Color(0xFF0052CC))
             else
-              _buildDetailItem('Tu Ganancia (70%)', '\$${_currentService.technicianCommission.toStringAsFixed(0)}', color: const Color(0xFF36B37E)),
+              _buildDetailItem('Tu Ganancia (70%)', formatCurrency(_currentService.technicianCommission), color: const Color(0xFF36B37E)),
           ] else ...[
-            _buildDetailItem('Precio Base', '\$${_currentService.basePrice.toStringAsFixed(0)}'),
+            _buildDetailItem('Precio Base', formatCurrency(_currentService.basePrice)),
             const SizedBox(height: 12),
             if (_currentUser!.isAdmin)
               Text(
-                'Ganancia estimada (30%): \$${(_currentService.basePrice * 0.3).toStringAsFixed(0)}',
+                'Ganancia estimada (30%): ${formatCurrency(_currentService.basePrice * 0.3)}',
                 style: const TextStyle(color: Color(0xFF5E6C84), fontSize: 14),
               )
             else
               Text(
-                'Ganancia estimada (70%): \$${(_currentService.basePrice * 0.7).toStringAsFixed(0)}',
+                'Ganancia estimada (70%): ${formatCurrency(_currentService.basePrice * 0.7)}',
                 style: const TextStyle(color: Color(0xFF5E6C84), fontSize: 14),
               ),
           ],
@@ -701,7 +703,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
                 Navigator.pop(context);
                 _markArrivedWithType(ServiceType.revision);
               },
-              child: Text('Solo Revisión (\$${widget.service.basePrice.toStringAsFixed(0)})'),
+              child: Text('Solo Revisión (${formatCurrency(widget.service.basePrice)})'),
             ),
             TextButton(
               onPressed: () {
@@ -873,7 +875,7 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
 
   Future<void> _openMaps() async {
     final String query = Uri.encodeComponent(widget.service.location);
-    final Uri mapsUri = Uri.parse('https://www.google.com/maps/search/?api=1&query=$query');
+    final Uri mapsUri = Uri.parse('https://www.google.com/maps/dir/?api=1&destination=$query');
 
     if (await canLaunchUrl(mapsUri)) {
       await launchUrl(mapsUri);
@@ -892,15 +894,15 @@ class _ServiceDetailScreenState extends State<ServiceDetailScreen> {
       );
 
       final invoiceService = InvoiceService();
-      final file = await invoiceService.generateInvoice(widget.service);
+      final bytes = await invoiceService.generateInvoice(widget.service);
 
       if (mounted) Navigator.pop(context);
 
-      final result = await OpenFile.open(file.path);
-
-      if (result.type != ResultType.done) {
+      if (bytes.isNotEmpty) {
+        await downloadFile(bytes, 'factura_${widget.service.id}.pdf');
+      } else {
         if (!mounted) return;
-        showAnimatedDialog(context, DialogType.error, 'Error al abrir la factura');
+        showAnimatedDialog(context, DialogType.error, 'Error al generar la factura');
       }
     } catch (e) {
       if (mounted) Navigator.pop(context);

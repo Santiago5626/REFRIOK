@@ -1,8 +1,14 @@
 import 'package:flutter/material.dart';
 import '../models/service.dart';
 import '../models/user.dart' as app_user;
-import '../theme/app_theme.dart';
+import '../services/invoice_service.dart';
+import '../services/auth_service.dart';
+import '../services/service_management_service.dart';
+import '../utils/dialog_utils.dart';
+import '../utils/download_helper.dart';
+import '../screens/edit_service_screen.dart';
 import '../screens/service_detail_screen.dart';
+import '../theme/app_theme.dart';
 
 class ServiceCard extends StatelessWidget {
   final Service service;
@@ -50,19 +56,17 @@ class ServiceCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
-          onTap: currentUser.isAdmin
-              ? null
-              : () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) => ServiceDetailScreen(
-                        service: service,
-                        isAvailable: isAvailable,
-                      ),
-                    ),
-                  );
-                },
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ServiceDetailScreen(
+                  service: service,
+                  isAvailable: isAvailable,
+                ),
+              ),
+            );
+          },
           child: Padding(
             padding: const EdgeInsets.all(16),
             child: Column(
@@ -167,64 +171,109 @@ class ServiceCard extends StatelessWidget {
     return PopupMenuButton<String>(
       icon: const Icon(Icons.more_vert, color: Colors.grey),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      onSelected: (value) {
-        if (value == 'assign') {
-          onAssign(service);
-        } else if (value == 'delete') {
-          onDelete(service);
-        } else if (value == 'view') {
+      offset: const Offset(0, 40), // Desplaza el menú hacia abajo
+      onSelected: (value) async {
+        if (value == 'edit') {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => ServiceDetailScreen(
-                service: service,
-                isAvailable: isAvailable,
-              ),
+              builder: (context) => EditServiceScreen(service: service),
             ),
           );
+        } else if (value == 'assign') {
+          _showAssignDialog(context, service);
+        } else if (value == 'delete') {
+          onDelete(service);
+        } else if (value == 'invoice') {
+          try {
+            showDialog(
+              context: context,
+              barrierDismissible: false,
+              builder: (context) => const Center(child: CircularProgressIndicator()),
+            );
+            
+            final invoiceService = InvoiceService();
+            final bytes = await invoiceService.generateInvoice(service);
+            
+            if (context.mounted) Navigator.pop(context); // Cerrar loading
+            
+            if (bytes.isNotEmpty) {
+              await downloadFile(bytes, 'factura_${service.id}.pdf');
+            } else {
+              if (context.mounted) {
+                showAnimatedDialog(context, DialogType.error, 'No se pudo generar la factura');
+              }
+            }
+          } catch (e) {
+            if (context.mounted) {
+              Navigator.pop(context); // Cerrar loading si sigue abierto
+              showAnimatedDialog(context, DialogType.error, 'Error: $e');
+            }
+          }
         }
       },
       itemBuilder: (BuildContext context) {
-        final items = <PopupMenuEntry<String>>[
-          const PopupMenuItem<String>(
-            value: 'view',
-            child: Row(
-              children: [
-                Icon(Icons.visibility_outlined, size: 20),
-                SizedBox(width: 12),
-                Text('Ver detalles'),
-              ],
-            ),
-          ),
-        ];
+        final items = <PopupMenuEntry<String>>[];
 
-        if (service.status == ServiceStatus.pending ||
-            service.status == ServiceStatus.assigned ||
-            service.status == ServiceStatus.onWay ||
-            service.status == ServiceStatus.inProgress) {
+        // Editar (si no está pagado)
+        if (service.status != ServiceStatus.paid) {
           items.add(
-            PopupMenuItem<String>(
-              value: 'assign',
+            const PopupMenuItem<String>(
+              value: 'edit',
               child: Row(
                 children: [
-                  const Icon(Icons.person_add_outlined, size: 20),
-                  const SizedBox(width: 12),
-                  Text(service.status == ServiceStatus.pending
-                      ? 'Asignar'
-                      : 'Reasignar'),
+                  Icon(Icons.edit_outlined, size: 20, color: Color(0xFF0052CC)),
+                  SizedBox(width: 12),
+                  Text('Editar', style: TextStyle(color: Color(0xFF0052CC))),
                 ],
               ),
             ),
           );
         }
 
+        // Asignar/Reasignar (solo si no está completado o pagado)
+        if (service.status != ServiceStatus.completed && service.status != ServiceStatus.paid) {
+          items.add(
+            PopupMenuItem<String>(
+              value: 'assign',
+              child: Row(
+                children: [
+                  const Icon(Icons.person_add_outlined, size: 20, color: Color(0xFF6554C0)),
+                  const SizedBox(width: 12),
+                  Text(
+                    service.assignedTechnicianId != null ? 'Reasignar' : 'Asignar',
+                    style: const TextStyle(color: Color(0xFF6554C0)),
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Factura (solo si está completado o pagado)
+        if (service.status == ServiceStatus.completed || service.status == ServiceStatus.paid) {
+          items.add(
+            const PopupMenuItem<String>(
+              value: 'invoice',
+              child: Row(
+                children: [
+                  Icon(Icons.receipt_long_outlined, size: 20, color: Color(0xFF36B37E)),
+                  SizedBox(width: 12),
+                  Text('Factura', style: TextStyle(color: Color(0xFF36B37E))),
+                ],
+              ),
+            ),
+          );
+        }
+
+        // Eliminar
         items.add(
           const PopupMenuItem<String>(
             value: 'delete',
             child: Row(
               children: [
                 Icon(Icons.delete_outline, color: AppTheme.errorText, size: 20),
-                const SizedBox(width: 12),
+                SizedBox(width: 12),
                 Text('Eliminar', style: TextStyle(color: AppTheme.errorText)),
               ],
             ),
@@ -313,5 +362,79 @@ class ServiceCard extends StatelessWidget {
 
   String _formatDateTime(DateTime dateTime) {
     return '${dateTime.day}/${dateTime.month}/${dateTime.year} ${dateTime.hour}:${dateTime.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _showAssignDialog(BuildContext context, Service service) async {
+    final authService = AuthService();
+    final serviceService = ServiceManagementService();
+    
+    List<app_user.User> allUsers = await authService.getUsers();
+
+    // Incluir tanto técnicos como administradores
+    List<app_user.User> availableUsers = allUsers
+        .where((user) =>
+            (service.sedeId == null || user.sedeId == service.sedeId || user.isAdmin))
+        .toList();
+
+    if (!context.mounted) return;
+
+    app_user.User? selectedTechnician = await showDialog<app_user.User>(
+      context: context,
+      builder: (BuildContext dialogContext) {
+        return AlertDialog(
+          title: const Text('Asignar Usuario'),
+          content: SizedBox(
+            width: double.maxFinite,
+            child: availableUsers.isEmpty
+                ? const Padding(
+                    padding: EdgeInsets.all(20),
+                    child: Text('No hay usuarios disponibles'),
+                  )
+                : ListView.builder(
+                    shrinkWrap: true,
+                    itemCount: availableUsers.length,
+                    itemBuilder: (context, index) {
+                      final user = availableUsers[index];
+                      return ListTile(
+                        leading: CircleAvatar(
+                          backgroundColor: user.isAdmin
+                              ? AppTheme.primaryBlue
+                              : AppTheme.successText,
+                          child: Text(
+                            user.name[0].toUpperCase(),
+                            style: const TextStyle(color: Colors.white),
+                          ),
+                        ),
+                        title: Text(user.name),
+                        subtitle: Text(user.isAdmin ? 'Administrador' : 'Técnico'),
+                        onTap: () {
+                          Navigator.of(dialogContext).pop(user);
+                        },
+                      );
+                    },
+                  ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(),
+              child: const Text('Cancelar'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (selectedTechnician != null) {
+      if (!context.mounted) return;
+      
+      try {
+        await serviceService.assignService(service.id, selectedTechnician.id);
+        if (!context.mounted) return;
+        showAnimatedDialog(context, DialogType.success, 'Servicio asignado correctamente');
+      } catch (e) {
+        if (!context.mounted) return;
+        showAnimatedDialog(context, DialogType.error, e.toString());
+      }
+    }
   }
 }

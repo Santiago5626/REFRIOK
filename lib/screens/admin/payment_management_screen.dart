@@ -38,17 +38,7 @@ class _PaymentManagementScreenState extends State<PaymentManagementScreen> {
         elevation: 0,
         centerTitle: false,
         iconTheme: const IconThemeData(color: Color(0xFF172B4D)),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.build_circle_outlined, color: Color(0xFF0052CC)),
-            tooltip: 'Arreglar campo isPaid',
-            onPressed: _fixIsPaidField,
-            style: IconButton.styleFrom(
-              backgroundColor: const Color(0xFFF4F5F7),
-            ),
-          ),
-          const SizedBox(width: 16),
-        ],
+        actions: const [],
       ),
       body: StreamBuilder<List<Service>>(
         stream: _serviceService.getAllServices(),

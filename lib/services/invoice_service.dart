@@ -1,13 +1,12 @@
-import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
-import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import '../models/service.dart';
+import '../utils/currency_formatter.dart';
 
 class InvoiceService {
-  Future<File> generateInvoice(Service service) async {
+  Future<Uint8List> generateInvoice(Service service) async {
     final pdf = pw.Document();
     
     // Cargar el logo
@@ -103,7 +102,7 @@ class InvoiceService {
                   children: [
                     pw.Text('INFORMACIÓN DE PAGO',
                         style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-                    pw.Text('Precio Final: \$${service.finalPrice.toStringAsFixed(0)}'),
+                    pw.Text('Precio Final: ${formatCurrency(service.finalPrice)}'),
                     pw.Text('Estado: ${service.isPaid ? 'PAGADO' : 'PENDIENTE'}'),
                   ],
                 ),
@@ -145,11 +144,6 @@ class InvoiceService {
       ),
     );
 
-    // Guardar el PDF
-    final output = await getTemporaryDirectory();
-    final file = File('${output.path}/factura_${service.id}.pdf');
-    await file.writeAsBytes(await pdf.save());
-    
-    return file;
+    return await pdf.save();
   }
 }
